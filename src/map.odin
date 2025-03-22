@@ -74,12 +74,27 @@ mercator_to_coord :: proc(mercator: Mercator_Coord, zoom: i32) -> Coord {
     }
 }
 
+_get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
+    item, ok := cache[tile]
+    if !ok {
+        request_tile(tile)
+        // allocate so we know that this tile is busy
+        tile_data := new(Tile_Data)
+        cache[tile] = tile_data
+        return nil
+    } else if !item.ready {
+        return nil
+    }
+
+    return item
+}
+
 // calculate which tiles need to be rendered and add them to the list
 // The tiles array will be sorted with lower zoom levels first
-map_get_tiles :: proc(cache: ^Tile_Cache, map_cam: Map_Camera) -> []^Tile_Item {
+map_get_tiles :: proc(cache: ^Tile_Cache, map_cam: Map_Camera) -> []^Tile_Data {
 
     // Surely this will be fine
-    @(static) tile_buf: [256]^Tile_Item
+    @(static) tile_buf: [256]^Tile_Data
 
     origin := map_cam.center - {int(map_cam.width / 2), int(map_cam.height / 2)}
     start_pos := tile_to_mercator(mercator_to_tile(origin, map_cam.zoom))
@@ -87,13 +102,13 @@ map_get_tiles :: proc(cache: ^Tile_Cache, map_cam: Map_Camera) -> []^Tile_Item {
     for y := start_pos.y; y < origin.y + int(map_cam.height); y += TILE_SIZE {
         for x := start_pos.x; x < origin.x + int(map_cam.width); x += TILE_SIZE {
             tile := mercator_to_tile({x, y}, map_cam.zoom)
-            item, ok := cache[tile]
-            if !ok {
-                fetch_tile(cache, tile)
-                item = cache[tile]
+            tile_data := _get_tile(cache, tile)
+            if tile_data == nil {
+                continue
+            } else {
+                tile_buf[count] = tile_data
+                count += 1
             }
-            tile_buf[count] = item
-            count += 1
         }
     }
 

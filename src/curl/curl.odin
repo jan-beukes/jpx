@@ -1,6 +1,6 @@
 package curl
 
-import _c "core:c"
+import "core:c"
 
 /* Macros */
 
@@ -132,21 +132,21 @@ OPT_INFILE :: OPT_READDATA;
 OPT_WRITEHEADER :: OPT_HEADERDATA;
 OPT_WRITEINFO :: OPT_OBSOLETE40;
 OPT_CLOSEPOLICY :: OPT_OBSOLETE72;
-AUTH_NONE :: ((_c.ulong)(0));
-AUTH_BASIC :: (((_c.ulong)(1)) << 0);
-AUTH_DIGEST :: (((_c.ulong)(1)) << 1);
-AUTH_NEGOTIATE :: (((_c.ulong)(1)) << 2);
+AUTH_NONE :: ((c.ulong)(0));
+AUTH_BASIC :: (((c.ulong)(1)) << 0);
+AUTH_DIGEST :: (((c.ulong)(1)) << 1);
+AUTH_NEGOTIATE :: (((c.ulong)(1)) << 2);
 AUTH_GSSNEGOTIATE :: AUTH_NEGOTIATE;
 AUTH_GSSAPI :: AUTH_NEGOTIATE;
-AUTH_NTLM :: (((_c.ulong)(1)) << 3);
-AUTH_DIGEST_IE :: (((_c.ulong)(1)) << 4);
-AUTH_NTLM_WB :: (((_c.ulong)(1)) << 5);
-AUTH_BEARER :: (((_c.ulong)(1)) << 6);
-AUTH_AWS_SIGV4 :: (((_c.ulong)(1)) << 7);
-AUTH_ONLY :: (((_c.ulong)(1)) << 31);
+AUTH_NTLM :: (((c.ulong)(1)) << 3);
+AUTH_DIGEST_IE :: (((c.ulong)(1)) << 4);
+AUTH_NTLM_WB :: (((c.ulong)(1)) << 5);
+AUTH_BEARER :: (((c.ulong)(1)) << 6);
+AUTH_AWS_SIGV4 :: (((c.ulong)(1)) << 7);
+AUTH_ONLY :: (((c.ulong)(1)) << 31);
 AUTH_ANY :: (~AUTH_DIGEST_IE);
 AUTH_ANYSAFE :: (~(AUTH_BASIC | AUTH_DIGEST_IE));
-SSH_AUTH_ANY :: ~_c.uint(0);
+SSH_AUTH_ANY :: ~c.uint(0);
 SSH_AUTH_NONE :: 0;
 SSH_AUTH_PUBLICKEY :: (1 << 0);
 SSH_AUTH_PASSWORD :: (1 << 1);
@@ -178,8 +178,8 @@ ALTSVC_READONLYFILE :: (1 << 2);
 ALTSVC_H1 :: (1 << 3);
 ALTSVC_H2 :: (1 << 4);
 ALTSVC_H3 :: (1 << 5);
-HSTS_ENABLE :: (_c.long)(1 << 0);
-HSTS_READONLYFILE :: (_c.long)(1 << 1);
+HSTS_ENABLE :: (c.long)(1 << 0);
+HSTS_READONLYFILE :: (c.long)(1 << 1);
 PROTO_HTTP :: (1 << 0);
 PROTO_HTTPS :: (1 << 1);
 PROTO_FTP :: (1 << 2);
@@ -210,7 +210,7 @@ PROTO_SMB :: (1 << 26);
 PROTO_SMBS :: (1 << 27);
 PROTO_MQTT :: (1 << 28);
 PROTO_GOPHERS :: (1 << 29);
-PROTO_ALL :: (~_c.uint(0));
+PROTO_ALL :: (~c.uint(0));
 OPTTYPE_LONG :: 0;
 OPTTYPE_OBJECTPOINT :: 10000;
 OPTTYPE_FUNCTIONPOINT :: 20000;
@@ -238,7 +238,7 @@ REDIR_POST_301 :: 1;
 REDIR_POST_302 :: 2;
 REDIR_POST_303 :: 4;
 REDIR_POST_ALL :: (REDIR_POST_301 | REDIR_POST_302 | REDIR_POST_303);
-ZERO_TERMINATED :: (~(_c.uint)(0));
+ZERO_TERMINATED :: (~(c.uint)(0));
 INFO_STRING :: 0x100000;
 INFO_LONG :: 0x200000;
 INFO_DOUBLE :: 0x300000;
@@ -296,7 +296,7 @@ time_t :: __time_t;
 
 ;
 
-__fd_mask :: _c.long;
+__fd_mask :: c.long;
 
 fd_set :: struct {
     __fds_bits : [1024 / (8 * (int)(size_of(__fd_mask)))]__fd_mask,
@@ -306,7 +306,7 @@ fd_set :: struct {
 
 socket_t :: int;
 
-sslbackend :: _c.int;
+sslbackend :: c.int;
 /*  <ENUM> :: enum { */
 SSLBACKEND_NONE                :: 0;
 SSLBACKEND_OPENSSL             :: 1;
@@ -328,21 +328,21 @@ SSLBACKEND_RUSTLS              :: 14;
 httppost :: struct {
     next           : ^httppost,
     name           : cstring,
-    namelength     : _c.long,
+    namelength     : c.long,
     contents       : cstring,
-    contentslength : _c.long,
+    contentslength : c.long,
     buffer         : cstring,
-    bufferlength   : _c.long,
+    bufferlength   : c.long,
     contenttype    : cstring,
     contentheader  : ^slist,
     more           : ^httppost,
-    flags          : _c.long,
+    flags          : c.long,
     showfilename   : cstring,
     userp          : rawptr,
     contentlen     : off_t,
 };
 
-curlfiletype :: _c.int;
+curlfiletype :: c.int;
 /*  <ENUM> :: enum { */
 FILETYPE_FILE             :: 0;
 FILETYPE_DIRECTORY        :: 1;
@@ -359,14 +359,14 @@ seek_callback :: (proc(instream : rawptr, offset : off_t, origin : int) -> int);
 
 read_callback :: (proc(buffer : cstring, size : uint, nitems : uint, instream : rawptr) -> uint);
 
-curlsocktype :: _c.int;
+curlsocktype :: c.int;
 /*  <ENUM> :: enum { */
 SOCKTYPE_IPCXN      :: 0;
 SOCKTYPE_ACCEPT     :: 1;
 SOCKTYPE_LAST       :: 2;
 /* } */;
 
-curlioerr :: _c.int;
+curlioerr :: c.int;
 /*  <ENUM> :: enum { */
 IOE_OK              :: 0;
 IOE_UNKNOWNCMD      :: 1;
@@ -374,7 +374,7 @@ IOE_FAILRESTART     :: 2;
 IOE_LAST            :: 3;
 /* } */;
 
-curliocmd :: _c.int;
+curliocmd :: c.int;
 /*  <ENUM> :: enum { */
 IOCMD_NOP             :: 0;
 IOCMD_RESTARTREAD     :: 1;
@@ -383,7 +383,7 @@ IOCMD_LAST            :: 2;
 
 malloc_callback :: (proc(size : uint) -> rawptr);
 
-infotype :: _c.int;
+infotype :: c.int;
 /*  <ENUM> :: enum { */
 INFO_TEXT             :: 0;
 INFO_HEADER_IN        :: 1;
@@ -403,9 +403,9 @@ strdup_callback :: (proc(str : cstring) -> cstring);
 
 calloc_callback :: (proc(nmemb : uint, size : uint) -> rawptr);
 
-off_t :: _c.long;
+off_t :: c.long;
 
-CURLcode :: _c.int;
+CURLcode :: c.int;
 /*  <ENUM> :: enum { */
 E_OK                           :: 0;
 E_UNSUPPORTED_PROTOCOL         :: 1;
@@ -514,7 +514,7 @@ slist :: struct {
     next : ^slist,
 };
 
-CURLproxycode :: _c.int;
+CURLproxycode :: c.int;
 /*  <ENUM> :: enum { */
 PX_OK                                   :: 0;
 PX_BAD_ADDRESS_TYPE                     :: 1;
@@ -553,7 +553,7 @@ PX_USER_REJECTED                        :: 33;
 PX_LAST                                 :: 34;
 /* } */;
 
-proxytype :: _c.int;
+proxytype :: c.int;
 /*  <ENUM> :: enum { */
 PROXY_HTTP                :: 0;
 PROXY_HTTP_1_0            :: 1;
@@ -564,7 +564,7 @@ PROXY_SOCKS4A             :: 6;
 PROXY_SOCKS5_HOSTNAME     :: 7;
 /* } */;
 
-usessl :: _c.int;
+usessl :: c.int;
 /*  <ENUM> :: enum { */
 USESSL_NONE        :: 0;
 USESSL_TRY         :: 1;
@@ -573,7 +573,7 @@ USESSL_ALL         :: 3;
 USESSL_LAST        :: 4;
 /* } */;
 
-ftpccc :: _c.int;
+ftpccc :: c.int;
 /*  <ENUM> :: enum { */
 FTPSSL_CCC_NONE        :: 0;
 FTPSSL_CCC_PASSIVE     :: 1;
@@ -581,7 +581,7 @@ FTPSSL_CCC_ACTIVE      :: 2;
 FTPSSL_CCC_LAST        :: 3;
 /* } */;
 
-ftpauth :: _c.int;
+ftpauth :: c.int;
 /*  <ENUM> :: enum { */
 FTPAUTH_DEFAULT     :: 0;
 FTPAUTH_SSL         :: 1;
@@ -589,7 +589,7 @@ FTPAUTH_TLS         :: 2;
 FTPAUTH_LAST        :: 3;
 /* } */;
 
-ftpcreatedir :: _c.int;
+ftpcreatedir :: c.int;
 /*  <ENUM> :: enum { */
 FTP_CREATE_DIR_NONE      :: 0;
 FTP_CREATE_DIR           :: 1;
@@ -597,7 +597,7 @@ FTP_CREATE_DIR_RETRY     :: 2;
 FTP_CREATE_DIR_LAST      :: 3;
 /* } */;
 
-ftpmethod :: _c.int;
+ftpmethod :: c.int;
 /*  <ENUM> :: enum { */
 FTPMETHOD_DEFAULT       :: 0;
 FTPMETHOD_MULTICWD      :: 1;
@@ -606,14 +606,14 @@ FTPMETHOD_SINGLECWD     :: 3;
 FTPMETHOD_LAST          :: 4;
 /* } */;
 
-CURLSTScode :: _c.int;
+CURLSTScode :: c.int;
 /*  <ENUM> :: enum { */
 STS_OK       :: 0;
 STS_DONE     :: 1;
 STS_FAIL     :: 2;
 /* } */;
 
-CURLoption :: _c.int;
+CURLoption :: c.int;
 /*  <ENUM> :: enum { */
 OPT_WRITEDATA                      :: 10000 + 1;
 OPT_URL                            :: 10000 + 2;
@@ -910,7 +910,7 @@ OPT_PROXY_CAINFO_BLOB              :: 40000 + 310;
 OPT_LASTENTRY                      :: 40311;
 /* } */;
 
-TimeCond :: _c.int;
+TimeCond :: c.int;
 /*  <ENUM> :: enum { */
 TIMECOND_NONE              :: 0;
 TIMECOND_IFMODSINCE        :: 1;
@@ -923,7 +923,7 @@ mime :: struct {};
 
 mimepart :: struct {};
 
-CURLformoption :: _c.int;
+CURLformoption :: c.int;
 /*  <ENUM> :: enum { */
 FORM_NOTHING            :: 0;
 FORM_COPYNAME           :: 1;
@@ -949,7 +949,7 @@ FORM_CONTENTLEN         :: 20;
 FORM_LASTENTRY          :: 21;
 /* } */;
 
-CURLFORMcode :: _c.int;
+CURLFORMcode :: c.int;
 /*  <ENUM> :: enum { */
 FORMADD_OK                  :: 0;
 FORMADD_MEMORY              :: 1;
@@ -964,13 +964,13 @@ FORMADD_LAST                :: 8;
 
 waitfd :: struct {
     fd      : socket_t,
-    events  : _c.short,
-    revents : _c.short,
+    events  : c.short,
+    revents : c.short,
 };
 
 ;
 
-CURLMcode :: _c.int;
+CURLMcode :: c.int;
 /*  <ENUM> :: enum { */
 M_CALL_MULTI_PERFORM        :: -1;
 M_OK                        :: 0;
@@ -987,7 +987,7 @@ M_BAD_FUNCTION_ARGUMENT     :: 10;
 M_LAST                      :: 11;
 /* } */;
 
-CURLMSG :: _c.int;
+CURLMSG :: c.int;
 /*  <ENUM> :: enum { */
 MSG_NONE     :: 0;
 MSG_DONE     :: 1;
@@ -1011,7 +1011,7 @@ ssl_backend :: struct
     name: cstring,
 }
 
-CURLsslset :: _c.int;
+CURLsslset :: c.int;
 /*  <ENUM> :: enum { */
 SSLSET_OK                  :: 0;
 SSLSET_UNKNOWN_BACKEND     :: 1;
@@ -1019,7 +1019,7 @@ SSLSET_TOO_LATE            :: 2;
 SSLSET_NO_BACKENDS         :: 3;
 /* } */;
 
-CURLINFO :: _c.int;
+CURLINFO :: c.int;
 /*  <ENUM> :: enum { */
 INFO_NONE                          :: 0;
 INFO_EFFECTIVE_URL                 :: 0x100000 + 1;
@@ -1092,7 +1092,7 @@ INFO_REFERER                       :: 0x100000 + 60;
 INFO_LASTONE                       :: 60;
 /* } */;
 
-closepolicy :: _c.int;
+closepolicy :: c.int;
 /*  <ENUM> :: enum { */
 CLOSEPOLICY_NONE                    :: 0;
 CLOSEPOLICY_OLDEST                  :: 1;
@@ -1103,7 +1103,7 @@ CLOSEPOLICY_CALLBACK                :: 5;
 CLOSEPOLICY_LAST                    :: 6;
 /* } */;
 
-lock_data :: _c.int;
+lock_data :: c.int;
 /*  <ENUM> :: enum { */
 LOCK_DATA_NONE             :: 0;
 LOCK_DATA_SHARE            :: 1;
@@ -1115,7 +1115,7 @@ LOCK_DATA_PSL              :: 6;
 LOCK_DATA_LAST             :: 7;
 /* } */;
 
-lock_access :: _c.int;
+lock_access :: c.int;
 /*  <ENUM> :: enum { */
 LOCK_ACCESS_NONE        :: 0;
 LOCK_ACCESS_SHARED      :: 1;
@@ -1123,7 +1123,7 @@ LOCK_ACCESS_SINGLE      :: 2;
 LOCK_ACCESS_LAST        :: 3;
 /* } */;
 
-CURLSHcode :: _c.int;
+CURLSHcode :: c.int;
 /*  <ENUM> :: enum { */
 SHE_OK               :: 0;
 SHE_BAD_OPTION       :: 1;
@@ -1134,7 +1134,7 @@ SHE_NOT_BUILT_IN     :: 5;
 SHE_LAST             :: 6;
 /* } */;
 
-CURLSHoption :: _c.int;
+CURLSHoption :: c.int;
 /*  <ENUM> :: enum { */
 SHOPT_NONE           :: 0;
 SHOPT_SHARE          :: 1;
@@ -1145,7 +1145,7 @@ SHOPT_USERDATA       :: 5;
 SHOPT_LAST           :: 6;
 /* } */;
 
-CURLversion :: _c.int;
+CURLversion :: c.int;
 /*  <ENUM> :: enum { */
 VERSION_FIRST       :: 0;
 VERSION_SECOND      :: 1;
@@ -1164,24 +1164,24 @@ version_info_data :: struct
 {
     age: CURLversion,
     version: cstring,
-    version_num: _c.uint,
+    version_num: c.uint,
     host: cstring,
-    features: _c.int,
+    features: c.int,
     ssl_version: cstring,
-    ssl_version_num: _c.long,
+    ssl_version_num: c.long,
     libz_version: cstring,
     protocols: cstring,
     
     ares: cstring,
-    ares_num: _c.int,
+    ares_num: c.int,
     
     libidn: cstring,
     
-    iconv_ver_num: _c.int,
+    iconv_ver_num: c.int,
     
     libssh_version: cstring,
     
-    brotli_ver_num: _c.uint,
+    brotli_ver_num: c.uint,
     brotli_version: cstring,
     
     nghttp2_version: cstring,
@@ -1190,7 +1190,7 @@ version_info_data :: struct
     cainfo: cstring,
     capath: cstring,
     
-    zstd_ver_num: _c.uint,
+    zstd_ver_num: c.uint,
     zstd_version: cstring,
     
     hyper_cersion: cstring,
@@ -1198,13 +1198,13 @@ version_info_data :: struct
     gsasl_version: cstring,
 }
 
-__time_t :: _c.long;
+__time_t :: c.long;
 
 formget_callback :: (proc(arg : rawptr, buf : cstring, len : uint) -> uint);
 
 pushheaders :: struct {};
 
-easytype :: _c.int;
+easytype :: c.int;
 /*  <ENUM> :: enum { */
 OT_LONG         :: 0;
 OT_VALUES       :: 1;
@@ -1217,7 +1217,7 @@ OT_BLOB         :: 7;
 OT_FUNCTION     :: 8;
 /* } */;
 
-CURLUcode :: _c.int;
+CURLUcode :: c.int;
 /*  <ENUM> :: enum { */
 UE_OK                     :: 0;
 UE_BAD_HANDLE             :: 1;
@@ -1243,10 +1243,10 @@ easyoption :: struct {
     name  : cstring,
     id    : CURLoption,
     type  : easytype,
-    flags : _c.uint,
+    flags : c.uint,
 };
 
-CURLUPart :: _c.int;
+CURLUPart :: c.int;
 /*  <ENUM> :: enum { */
 UPART_URL          :: 0;
 UPART_SCHEME       :: 1;
@@ -1265,7 +1265,7 @@ Curl_URL :: struct {};
 
 CURLU :: Curl_URL;
 
-CURLMoption :: _c.int;
+CURLMoption :: c.int;
 /*  <ENUM> :: enum { */
 MOPT_SOCKETFUNCTION                  :: 20000 + 1;
 MOPT_SOCKETDATA                      :: 10000 + 2;
@@ -1303,12 +1303,12 @@ foreign libcurl {
     easy_upkeep                                 :: proc(curl : rawptr) -> CURLcode ---;
     multi_add_handle                            :: proc(multi_handle : rawptr, curl_handle : rawptr) -> CURLMcode ---;
     multi_remove_handle                         :: proc(multi_handle : rawptr, curl_handle : rawptr) -> CURLMcode ---;
-    multi_fdset                                 :: proc(multi_handle : rawptr, read_fd_set : ^fd_set, write_fd_set : ^fd_set, exc_fd_set : ^fd_set, max_fd : ^int) -> CURLMcode ---;
+    multi_fdset                                 :: proc(multi_handle : rawptr, read_fd_set : ^fd_set, write_fd_set : ^fd_set, exc_fd_set : ^fd_set, max_fd : ^c.int) -> CURLMcode ---;
     easy_init                                   :: proc() -> rawptr ---;
     easy_duphandle                              :: proc(curl : rawptr) -> rawptr ---;
     multi_init                                  :: proc() -> rawptr ---;
-    strequal                                    :: proc(s1 : cstring, s2 : cstring) -> int ---;
-    strnequal                                   :: proc(s1 : cstring, s2 : cstring, n : uint) -> int ---;
+    strequal                                    :: proc(s1 : cstring, s2 : cstring) -> c.int ---;
+    strnequal                                   :: proc(s1 : cstring, s2 : cstring, n : uint) -> c.int ---;
     mime_init                                   :: proc(easy : rawptr) -> ^mime ---;
     mime_free                                   :: proc(mime : ^mime) ---;
     mime_addpart                                :: proc(mime : ^mime) -> ^mimepart ---;
@@ -1320,28 +1320,28 @@ foreign libcurl {
     mime_filedata                               :: proc(part : ^mimepart, filename : cstring) -> CURLcode ---;
     mime_data_cb                                :: proc(part : ^mimepart, datasize : off_t, readfunc : read_callback, seekfunc : seek_callback, freefunc : free_callback, arg : rawptr) -> CURLcode ---;
     mime_subparts                               :: proc(part : ^mimepart, subparts : ^mime) -> CURLcode ---;
-    mime_headers                                :: proc(part : ^mimepart, headers : ^slist, take_ownership : int) -> CURLcode ---;
+    mime_headers                                :: proc(part : ^mimepart, headers : ^slist, take_ownership : c.int) -> CURLcode ---;
     formadd                                     :: proc(_httppost : ^^httppost, last_post : ^^httppost, #c_vararg __args : ..any) -> CURLFORMcode ---;
-    multi_wait                                  :: proc(multi_handle : rawptr, extra_fds : ^waitfd, extra_nfds : _c.uint, timeout_ms : int, ret : ^int) -> CURLMcode ---;
-    multi_poll                                  :: proc(multi_handle : rawptr, extra_fds : ^waitfd, extra_nfds : _c.uint, timeout_ms : int, ret : ^int) -> CURLMcode ---;
+    multi_wait                                  :: proc(multi_handle : rawptr, extra_fds : ^waitfd, extra_nfds : c.uint, timeout_ms : c.int, ret : ^c.int) -> CURLMcode ---;
+    multi_poll                                  :: proc(multi_handle : rawptr, extra_fds : ^waitfd, extra_nfds : c.uint, timeout_ms : c.int, ret : ^c.int) -> CURLMcode ---;
     multi_wakeup                                :: proc(multi_handle : rawptr) -> CURLMcode ---;
-    multi_perform                               :: proc(multi_handle : rawptr, running_handles : ^int) -> CURLMcode ---;
+    multi_perform                               :: proc(multi_handle : rawptr, running_handles : ^c.int) -> CURLMcode ---;
     multi_cleanup                               :: proc(multi_handle : rawptr) -> CURLMcode ---;
-    multi_socket                                :: proc(multi_handle : rawptr, s : socket_t, running_handles : ^int) -> CURLMcode ---;
-    multi_socket_action                         :: proc(multi_handle : rawptr, s : socket_t, ev_bitmask : int, running_handles : ^int) -> CURLMcode ---;
-    multi_info_read                             :: proc(multi_handle : rawptr, msgs_in_queue : ^int) -> ^CURLMsg ---;
+    multi_socket                                :: proc(multi_handle : rawptr, s : socket_t, running_handles : ^c.int) -> CURLMcode ---;
+    multi_socket_action                         :: proc(multi_handle : rawptr, s : socket_t, ev_bitmask : c.int, running_handles : ^c.int) -> CURLMcode ---;
+    multi_info_read                             :: proc(multi_handle : rawptr, msgs_in_queue : ^c.int) -> ^CURLMsg ---;
     multi_strerror                              :: proc(CURLMcode) -> cstring ---;
-    formget                                     :: proc(form : ^httppost, arg : rawptr, append : formget_callback) -> int ---;
+    formget                                     :: proc(form : ^httppost, arg : rawptr, append : formget_callback) -> c.int ---;
     formfree                                    :: proc(form : ^httppost) ---;
     getenv                                      :: proc(variable : cstring) -> cstring ---;
     version                                     :: proc() -> cstring ---;
-    easy_escape                                 :: proc(handle : rawptr, string : cstring, length : int) -> cstring ---;
-    escape                                      :: proc(string : cstring, length : int) -> cstring ---;
-    easy_unescape                               :: proc(handle : rawptr, string : cstring, length : int, outlength : ^int) -> cstring ---;
-    unescape                                    :: proc(string : cstring, length : int) -> cstring ---;
+    easy_escape                                 :: proc(handle : rawptr, string : cstring, length : c.int) -> cstring ---;
+    escape                                      :: proc(string : cstring, length : c.int) -> cstring ---;
+    easy_unescape                               :: proc(handle : rawptr, string : cstring, length : c.int, outlength : ^c.int) -> cstring ---;
+    unescape                                    :: proc(string : cstring, length : c.int) -> cstring ---;
     free                                        :: proc(p : rawptr) ---;
-    global_init                                 :: proc(flags : _c.long) -> CURLcode ---;
-    global_init_mem                             :: proc(flags : _c.long, m : malloc_callback, f : free_callback, r : realloc_callback, s : strdup_callback, c : calloc_callback) -> CURLcode ---;
+    global_init                                 :: proc(flags : c.long) -> CURLcode ---;
+    global_init_mem                             :: proc(flags : c.long, m : malloc_callback, f : free_callback, r : realloc_callback, s : strdup_callback, c : calloc_callback) -> CURLcode ---;
     global_cleanup                              :: proc() ---;
     global_sslset                               :: proc(id : sslbackend, name : cstring, avail : ^^^ssl_backend) -> CURLsslset ---;
     slist_append                                :: proc(^slist, cstring) -> ^slist ---;
@@ -1353,17 +1353,17 @@ foreign libcurl {
     version_info                                :: proc(CURLversion) -> ^version_info_data ---;
     easy_strerror                               :: proc(CURLcode) -> cstring ---;
     share_strerror                              :: proc(CURLSHcode) -> cstring ---;
-    easy_pause                                  :: proc(handle : rawptr, bitmask : int) -> CURLcode ---;
-    multi_socket_all                            :: proc(multi_handle : rawptr, running_handles : ^int) -> CURLMcode ---;
+    easy_pause                                  :: proc(handle : rawptr, bitmask : c.int) -> CURLcode ---;
+    multi_socket_all                            :: proc(multi_handle : rawptr, running_handles : ^c.int) -> CURLMcode ---;
     easy_option_by_name                         :: proc(name : cstring) -> ^easyoption ---;
     easy_option_by_id                           :: proc(id : CURLoption) -> ^easyoption ---;
     easy_option_next                            :: proc(prev : ^easyoption) -> ^easyoption ---;
     url                                         :: proc() -> ^CURLU ---;
     url_cleanup                                 :: proc(handle : ^CURLU) ---;
     url_dup                                     :: proc(in_ : ^CURLU) -> ^CURLU ---;
-    url_get                                     :: proc(handle : ^CURLU, what : CURLUPart, part : ^cstring, flags : _c.uint) -> CURLUcode ---;
-    url_set                                     :: proc(handle : ^CURLU, what : CURLUPart, part : cstring, flags : _c.uint) -> CURLUcode ---;
-    multi_timeout                               :: proc(multi_handle : rawptr, milliseconds : ^_c.long) -> CURLMcode ---;
+    url_get                                     :: proc(handle : ^CURLU, what : CURLUPart, part : ^cstring, flags : c.uint) -> CURLUcode ---;
+    url_set                                     :: proc(handle : ^CURLU, what : CURLUPart, part : cstring, flags : c.uint) -> CURLUcode ---;
+    multi_timeout                               :: proc(multi_handle : rawptr, milliseconds : ^c.long) -> CURLMcode ---;
     multi_setopt                                :: proc(multi_handle : rawptr, option : CURLMoption, #c_vararg __args : ..any) -> CURLMcode ---;
     multi_assign                                :: proc(multi_handle : rawptr, sockfd : socket_t, sockp : rawptr) -> CURLMcode ---;
     pushheader_bynum                            :: proc(h : ^pushheaders, num : uint) -> cstring ---;

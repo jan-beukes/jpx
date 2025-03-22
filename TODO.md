@@ -1,0 +1,6 @@
+- [x] Async Tile fetching
+- [ ] Panning and zooming (CHECK BOUNDS)
+- [ ] Cache eviction
+- [ ] GPX parsing and rendering
+- [ ] UI for stats and loading gpx
+- [ ] WEB
