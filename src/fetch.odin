@@ -7,15 +7,19 @@ import rl "vendor:raylib"
 import stbp "vendor:stb/sprintf"
 import "curl"
 
-Cache_Entry :: struct {
-    tile: Tile,
+Tile_Item :: struct {
+    coord: Mercator_Coord,
     texture: rl.Texture,
+    access_timer: f32,
 }
 
 Tile_Chunk :: struct {
     tile: Tile,
     data: [dynamic]u8,
 }
+
+CACHE_LIMIT :: 128
+Tile_Cache :: map[Tile]^Tile_Item
 
 TILE_DOMAIN: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 fetch_context: runtime.Context
@@ -24,7 +28,6 @@ tile_url :: proc(tile: Tile) -> cstring {
     @(static) url_buf: [1024]u8
     buf_ptr := raw_data(url_buf[:])
     stbp.sprintf(buf_ptr, TILE_DOMAIN, tile.zoom, tile.x, tile.y)
-    fmt.println(cstring(buf_ptr))
     return cstring(buf_ptr)
 }
 
@@ -38,7 +41,7 @@ write_proc :: proc "c" (content: rawptr, size, nmemb: uint, user_data: rawptr) -
     return num_bytes
 }
 
-fetch_tile :: proc(tile: Tile) -> Cache_Entry {
+fetch_tile :: proc(cache: ^Tile_Cache, tile: Tile) {
     handle := curl.easy_init()
     defer curl.easy_cleanup(handle)
 
@@ -56,14 +59,23 @@ fetch_tile :: proc(tile: Tile) -> Cache_Entry {
     curl.easy_setopt(handle, curl.OPT_PRIVATE, &chunk)
 
     curl.easy_perform(handle)
-    fmt.println("Got Tile", chunk.tile, len(chunk.data))
 
     // upload texture
     img := rl.LoadImageFromMemory(".png", raw_data(chunk.data), i32(len(chunk.data)))
     texture := rl.LoadTextureFromImage(img)
+    rl.SetTextureFilter(texture, .BILINEAR)
     delete(chunk.data)
-    return Cache_Entry {
-        tile = chunk.tile,
+    item := new(Tile_Item)
+    item^ = Tile_Item {
+        coord = tile_to_mercator(chunk.tile),
         texture = texture,
     }
+    cache[chunk.tile] = item
+}
+
+clean_cache :: proc(cache: Tile_Cache) {
+    for _, item in cache {
+        free(item)
+    }
+
 }

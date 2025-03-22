@@ -16,6 +16,7 @@ Tile :: struct {
 
 MAX_LAT :: 85.051129
 TILE_SIZE :: 256
+ZOOM_FALLBACK_LIMIT :: 3
 
 coord_to_tile :: proc(coord: Coord, zoom: i32) -> Tile {
     n := 1 << u32(zoom)
@@ -32,7 +33,6 @@ coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
     // transform to unit square
     x := 0.5 + lon / 360.0
     y := 0.5 - lat_rad / math.TAU
-    fmt.println(y)
 
     // zoom and scale with tile size
     n := 1 << u32(zoom)
@@ -72,4 +72,30 @@ mercator_to_coord :: proc(mercator: Mercator_Coord, zoom: i32) -> Coord {
         lon,
         lat,
     }
+}
+
+// calculate which tiles need to be rendered and add them to the list
+// The tiles array will be sorted with lower zoom levels first
+map_get_tiles :: proc(cache: ^Tile_Cache, map_cam: Map_Camera) -> []^Tile_Item {
+
+    // Surely this will be fine
+    @(static) tile_buf: [256]^Tile_Item
+
+    origin := map_cam.center - {int(map_cam.width / 2), int(map_cam.height / 2)}
+    start_pos := tile_to_mercator(mercator_to_tile(origin, map_cam.zoom))
+    count := 0
+    for y := start_pos.y; y < origin.y + int(map_cam.height); y += TILE_SIZE {
+        for x := start_pos.x; x < origin.x + int(map_cam.width); x += TILE_SIZE {
+            tile := mercator_to_tile({x, y}, map_cam.zoom)
+            item, ok := cache[tile]
+            if !ok {
+                fetch_tile(cache, tile)
+                item = cache[tile]
+            }
+            tile_buf[count] = item
+            count += 1
+        }
+    }
+
+    return tile_buf[:count]
 }
