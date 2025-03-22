@@ -20,8 +20,7 @@ MAX_SCALE :: 1.8
 MIN_SCALE :: MAX_SCALE / 2.0
 ZOOM_STEP :: 0.1
 
-ZINI :: Coord{31.7544, -28.955}
-STATUE :: Coord{139.7006793, 35.6590699}
+TEST_LOC :: Coord{18.8843, -33.9467}
 
 // global state
 map_screen: Map_Screen
@@ -173,7 +172,7 @@ main :: proc() {
     defer rl.CloseWindow()
 
     map_screen = Map_Screen {
-        center = coord_to_mercator(ZINI, 13),
+        center = coord_to_mercator(TEST_LOC, 13),
         width = WINDOW_WIDTH,
         height = WINDOW_HEIGHT,
         zoom = 13,
