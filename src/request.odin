@@ -11,6 +11,7 @@ import "curl"
 Tile_Data :: struct {
     ready: bool,
     coord: Mercator_Coord,
+    zoom: i32,
     texture: rl.Texture,
     last_accessed: f64,
 }
@@ -86,6 +87,7 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 item^ = Tile_Data {
                     ready = true,
                     coord = tile_to_mercator(chunk.tile),
+                    zoom = tile.zoom,
                     texture = texture,
                     last_accessed = rl.GetTime(),
                 }
@@ -126,7 +128,16 @@ request_tile :: proc(tile: Tile) {
 // tiles that have a last use longer than timeout are evicted
 // don't evict tiles that contain the camera
 evict_cache :: proc(cache: ^Tile_Cache) {
+    // TODO: Implement
     for _, item in cache {
+        rl.UnloadTexture(item.texture)
+        free(item)
+    }
+}
+
+clear_cache :: proc(cache: ^Tile_Cache) {
+    for _, item in cache {
+        rl.UnloadTexture(item.texture)
         free(item)
     }
 }
