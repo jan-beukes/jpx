@@ -1,6 +1,7 @@
 package main
 
 import "core:math"
+import "core:slice"
 import "core:log"
 import rl "vendor:raylib"
 import "core:fmt"
@@ -18,7 +19,7 @@ Tile :: struct {
 
 MAX_ZOOM :: 19
 MIN_ZOOM :: 1
-ZOOM_FALLBACK_LIMIT :: 3
+ZOOM_FALLBACK_LIMIT :: 5
 
 TILE_SIZE :: 256
 
@@ -140,17 +141,17 @@ get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Recta
 
 // get the tile from cache
 // if the tile is not present request tile and look for possible fallbacks
-get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> (^Tile_Data, bool) {
+get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
     n := i32(1 << u32(tile.zoom))
     if tile.x >= n || tile.x < 0 {
-        return nil, false
+        return nil
     } else if tile.y >= n || tile.y < 0 {
-        return nil, false
+        return nil
     }
 
     item, ok := cache[tile]
     if ok && item.ready {
-        return item, false
+        return item
     }
 
     // request the tile
@@ -161,18 +162,21 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> (^Tile_Data, bool) {
         cache[tile] = tile_data
     } 
 
-    // try fallback
+
+    // Fallback
     fallback_limit := max(tile.zoom - ZOOM_FALLBACK_LIMIT, 0)
-    for fallback_zoom := tile.zoom - 1; fallback_zoom > fallback_limit; fallback_zoom -= 1{
-        coord := tile_to_mercator(tile)
-        coord = scale_mercator(coord, tile.zoom, fallback_zoom)
-        fallback_tile := mercator_to_tile(coord, fallback_zoom) 
+    fallback_tile := tile
+    for fallback_tile.zoom > fallback_limit {
+        fallback_tile.x /= 2
+        fallback_tile.y /= 2
+        fallback_tile.zoom -= 1
         item, ok := cache[fallback_tile]
         if ok && item.ready {
-            return item, true
+            return item
         }
     }
-    return nil, false
+
+    return nil
 }
 
 // calculate which tiles need to be rendered and add them to the list
@@ -180,9 +184,7 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> (^Tile_Data, bool) {
 map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) -> []^Tile_Data {
 
     // Surely this will be fine
-    @(static) tile_buf: [256]^Tile_Data
-    tiles: [256]^Tile_Data
-    fallbacks: [128]^Tile_Data
+    @(static) tiles: [256]^Tile_Data
 
     origin := map_screen.center - {
         0.5 * f64(map_screen.width),
@@ -190,27 +192,21 @@ map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) -> []^Tile_Dat
     }
 
     start_pos := tile_to_mercator(mercator_to_tile(origin, map_screen.zoom))
-    count, fallback_count := 0, 0
+    count := 0
     for y := start_pos.y; y < origin.y + f64(map_screen.height); y += TILE_SIZE {
         for x := start_pos.x; x < origin.x + f64(map_screen.width); x += TILE_SIZE {
             tile := mercator_to_tile({x, y}, map_screen.zoom)
-            tile_data, is_fallback := get_tile(cache, tile)
+            tile_data := get_tile(cache, tile)
             if tile_data == nil {
                 continue
             } else {
-                if is_fallback {
-                    fallbacks[fallback_count] = tile_data
-                    fallback_count += 1
-                } else {
-                    tiles[count] = tile_data
-                    count += 1
-                }
+                tiles[count] = tile_data
+                count += 1
             }
         }
     }
-    // make sure fallbacks are first for rendering
-    copy_slice(tile_buf[:], fallbacks[:])
-    copy_slice(tile_buf[fallback_count:], tiles[:])
-    total := fallback_count + count
-    return tile_buf[:total]
+    slice.sort_by(tiles[:count], proc(l, r: ^Tile_Data) -> bool {
+        return l.zoom < r.zoom
+    })
+    return tiles[:count]
 }

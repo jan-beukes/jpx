@@ -16,6 +16,8 @@ WINDOW_WIDTH :: 1280
 WINDOW_MIN_SIZE :: 300
 WINDOW_HEIGHT :: 720
 
+MAX_SCALE :: 1.8
+MIN_SCALE :: MAX_SCALE / 2.0
 ZOOM_STEP :: 0.1
 
 ZINI :: Coord{31.7544, -28.955}
@@ -35,6 +37,8 @@ draw_ui :: proc() {
             f32(WINDOW_HEIGHT) * 0.2,
         }
         rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
+
+        rl.DrawFPS(10, window_height - 20)
 
         padding := i32(overlay.y * 0.05)
         font_size := i32(overlay.y / 8.0)
@@ -60,22 +64,22 @@ draw_ui :: proc() {
 
 }
 
-zoom_map :: proc(dir: f32, window_width, window_height: i32) {
-    if map_screen.zoom == MAX_ZOOM && dir > 0 do return
-    if map_screen.zoom == MIN_ZOOM && dir < 0 do return
+zoom_map :: proc(step: f32, window_width, window_height: i32) {
+    if map_screen.zoom == MAX_ZOOM && step > 0 do return
+    if map_screen.zoom == MIN_ZOOM && step < 0 do return
 
-    map_screen.scale += dir*ZOOM_STEP
+    map_screen.scale += step
 
-    if map_screen.scale < 1.0 {
+
+    if map_screen.scale < MIN_SCALE {
         map_screen.zoom = max(map_screen.zoom - 1, MIN_ZOOM)
-        map_screen.scale = 2.0
+        map_screen.scale = MAX_SCALE
         map_screen.center *= 0.5
-    } else if map_screen.scale > 2.0 {
+    } else if map_screen.scale > MAX_SCALE {
         map_screen.zoom = min(map_screen.zoom + 1, MAX_ZOOM)
-        map_screen.scale = 1.0
+        map_screen.scale = MIN_SCALE
         map_screen.center *= 2
     }
-
     map_screen.width = i32(f32(window_width) / map_screen.scale)
     map_screen.height = i32(f32(window_height) / map_screen.scale)
 }
@@ -97,12 +101,12 @@ handle_input :: proc() {
         prev_mouse_map_pos := screen_to_map(map_screen, mouse_pos)
 
         if scroll > 0.0 && map_screen.zoom < MAX_ZOOM {
-            zoom_map(1, window_width, window_height)
+            zoom_map(ZOOM_STEP, window_width, window_height)
             if map_screen.zoom > prev_zoom {
                 prev_mouse_map_pos *= 2.0
             }
         } else if scroll < 0.0 && map_screen.zoom > 0 {
-            zoom_map(-1, window_width, window_height)
+            zoom_map(-ZOOM_STEP, window_width, window_height)
             if map_screen.zoom < prev_zoom {
                 prev_mouse_map_pos *= 0.5
             }
@@ -110,6 +114,10 @@ handle_input :: proc() {
 
         mouse_map_pos := screen_to_map(map_screen, mouse_pos)
         map_screen.center += (prev_mouse_map_pos - mouse_map_pos)
+    } else if rl.IsKeyPressed(.EQUAL) {
+            zoom_map((MAX_SCALE), window_width, window_height)
+    } else if rl.IsKeyPressed(.MINUS) {
+            zoom_map(-MAX_SCALE, window_width, window_height)
     }
 
     if rl.IsMouseButtonDown(.LEFT) {
@@ -151,7 +159,6 @@ update :: proc() {
     }
 
     draw_ui()
-
     rl.EndDrawing()
 }
 
@@ -174,6 +181,17 @@ main :: proc() {
     }
 
     init_tile_fetching()
+
+    // cache a few large tiles
+    tile := mercator_to_tile(map_screen.center, map_screen.zoom)
+    for _ in 0..<ZOOM_FALLBACK_LIMIT {
+        tile.x /= 2
+        tile.y /= 2
+        tile.zoom -= 1
+        request_tile(tile)
+        tile_data := new(Tile_Data)
+        cache[tile] = tile_data
+    }
 
     for !rl.WindowShouldClose() {
         update()

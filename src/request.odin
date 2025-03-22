@@ -25,7 +25,7 @@ CACHE_LIMIT :: 128
 CACHE_TIMEOUT :: 5.0
 Tile_Cache :: map[Tile]^Tile_Data
 
-TILE_DOMAIN: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
+OSM_DOMAIN: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 
 @(private="file")
 request_context: runtime.Context
@@ -45,7 +45,7 @@ deinit_tile_fetching :: proc() {
 }
 
 get_tile_url :: proc(tile: Tile) -> cstring {
-    return rl.TextFormat(TILE_DOMAIN, tile.zoom, tile.x, tile.y)
+    return rl.TextFormat(OSM_DOMAIN, tile.zoom, tile.x, tile.y)
 }
 
 write_proc :: proc "c" (content: rawptr, size, nmemb: uint, user_data: rawptr) -> uint {
@@ -82,6 +82,8 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 img := rl.LoadImageFromMemory(".png", raw_data(chunk.data), i32(len(chunk.data)))
                 texture := rl.LoadTextureFromImage(img)
                 rl.SetTextureFilter(texture, .BILINEAR)
+                // Mirrored wrap fixes bilinear filter sampling on edges
+                rl.SetTextureWrap(texture, .MIRROR_REPEAT) 
 
                 item := cache[tile]
                 item^ = Tile_Data {
