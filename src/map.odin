@@ -19,21 +19,8 @@ Tile :: struct {
     zoom: i32,
 }
 
-MAX_ZOOM :: 19
 MIN_ZOOM :: 1
-ZOOM_FALLBACK_LIMIT :: 5
-
-TILE_SIZE :: 256
-
-// from lon/lat to a tile
-coord_to_tile :: proc(coord: Coord, zoom: i32) -> Tile {
-    n := 1 << u32(zoom)
-    x_tile := i32(f64(n) * ((coord.x + 180.0) / 360.0))
-    lat_rad := coord.y * math.RAD_PER_DEG
-    y_tile := i32(f64(n) * (1.0 - (math.ln(math.tan(lat_rad) +
-        (1.0 / math.cos(lat_rad))) / math.PI)) / 2.0)
-    return Tile {x_tile, y_tile, zoom}
-}
+ZOOM_FALLBACK_LIMIT :: 4
 
 // from lon/lat to mercator coordinate
 coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
@@ -47,7 +34,8 @@ coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
 
     // zoom and scale with tile size
     n := 1 << u32(zoom)
-    map_size := f64(n * TILE_SIZE)
+    tile_size := req_state.tile_layer.tile_size
+    map_size := f64(n * int(tile_size))
     x_pixel := x * map_size
     y_pixel := y * map_size
     return Mercator_Coord {
@@ -60,8 +48,9 @@ coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
 // from mercator coordinate to lon/lat
 mercator_to_coord :: proc(mercator: Mercator_Coord, zoom: i32) -> Coord {
     // zoom and scale with tile size
+    tile_size := req_state.tile_layer.tile_size
     n := 1 << u32(zoom)
-    map_size := f64(n * TILE_SIZE)
+    map_size := f64(n * int(tile_size))
 
     x := mercator.x / map_size
     y := mercator.y / map_size
@@ -69,8 +58,7 @@ mercator_to_coord :: proc(mercator: Mercator_Coord, zoom: i32) -> Coord {
     // transform unit square to lon/lat
     lon := (x - 0.5) * 360.0
     lat_rad := (0.5 - y) * math.TAU
-    lat := lat_rad * math.DEG_PER_RAD
-
+    lat := math.atan(math.sinh(lat_rad)) * math.DEG_PER_RAD
     return Coord {
         lon,
         lat,
@@ -79,16 +67,18 @@ mercator_to_coord :: proc(mercator: Mercator_Coord, zoom: i32) -> Coord {
 
 // get which tile contains the mercator coord
 mercator_to_tile :: #force_inline proc(mercator: Mercator_Coord, zoom: i32) -> Tile {
-    tile_x := i32(mercator.x / TILE_SIZE)
-    tile_y := i32(mercator.y / TILE_SIZE)
+    tile_size := req_state.tile_layer.tile_size
+    tile_x := i32(mercator.x / tile_size)
+    tile_y := i32(mercator.y / tile_size)
     return Tile{tile_x, tile_y, zoom}
 }
 
 // mercator coordinates of the given tile
 tile_to_mercator :: #force_inline proc(tile: Tile) -> Mercator_Coord {
+    tile_size := req_state.tile_layer.tile_size
     return {
-        f64(tile.x) * TILE_SIZE,
-        f64(tile.y) * TILE_SIZE,
+        f64(tile.x * i32(tile_size)),
+        f64(tile.y * i32(tile_size)),
     }
 }
 
@@ -127,15 +117,16 @@ scale_mercator :: #force_inline proc(coord: Mercator_Coord, prev_z, new_z: i32) 
 // transform get tile dest rect from map screen scale and coord
 get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Rectangle {
     zoom_diff := map_screen.zoom - tile_data.zoom
+    tile_size := req_state.tile_layer.tile_size
     size: f32
     pos: rl.Vector2
     if zoom_diff > 0 {
         n := 1 << u32(zoom_diff)
-        size = TILE_SIZE * map_screen.scale * f32(n)
+        size = f32(tile_size) * map_screen.scale * f32(n)
         coord := scale_mercator(tile_data.coord, tile_data.zoom, map_screen.zoom)
         pos = map_to_screen(map_screen, coord)
     } else {
-        size = TILE_SIZE * map_screen.scale
+        size = f32(tile_size) * map_screen.scale
         pos = map_to_screen(map_screen, tile_data.coord)
     }
     return {pos.x, pos.y, size, size}
@@ -194,10 +185,11 @@ map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) -> []^Tile_Dat
         0.5 * f64(map_screen.height),
     }
 
+    tile_size := req_state.tile_layer.tile_size
     start_pos := tile_to_mercator(mercator_to_tile(origin, map_screen.zoom))
     count := 0
-    for y := start_pos.y; y < origin.y + f64(map_screen.height); y += TILE_SIZE {
-        for x := start_pos.x; x < origin.x + f64(map_screen.width); x += TILE_SIZE {
+    for y := start_pos.y; y < origin.y + f64(map_screen.height); y += tile_size {
+        for x := start_pos.x; x < origin.x + f64(map_screen.width); x += tile_size {
             tile := mercator_to_tile({x, y}, map_screen.zoom)
             tile_data := get_tile(cache, tile)
             if tile_data == nil {

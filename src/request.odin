@@ -3,6 +3,7 @@ package jpx
 import "core:mem"
 import "core:fmt"
 import "core:log"
+import stbi "vendor:stb/image"
 import "base:runtime"
 
 import rl "vendor:raylib"
@@ -26,23 +27,27 @@ Tile_Cache :: map[Tile]^Tile_Data
 Layer_Style :: enum i32 {
     Osm,
     Thunderforest,
-    Mapbox_Satelite,
     Mapbox_Outdoors,
+    Mapbox_Satelite,
 }
 
 Tile_Layer :: struct {
-    type: Layer_Style,
+    style: Layer_Style,
     url: cstring,
     api_key: cstring,
+    max_zoom: i32,
+    tile_size: f64,
 }
 
-CACHE_LIMIT :: 128
-CACHE_TIMEOUT :: 5.0
+CACHE_LIMIT :: 100
+CACHE_TIMEOUT :: 3.0
 
 OSM_URL: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 THUNDERFOREST_URL: cstring : "https://tile.thunderforest.com/outdoors/%d/%d/%d.png?apikey=%s"
-MAPBOX_SATELITE_URL: cstring : ""
-MAPBOX_OUTDOORS_URL: cstring : ""
+MAPBOX_OUTDOORS_URL: cstring :
+"https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/%d/%d/%d?access_token=%s"
+MAPBOX_SATELITE_URL: cstring :
+"https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/%d/%d/%d?access_token=%s"
 
 @(private="file")
 request_context: runtime.Context
@@ -60,18 +65,38 @@ init_tile_fetching :: proc(layer_style: Layer_Style, api_key: cstring) {
     switch_tile_layer(layer_style, api_key)
 }
 
-switch_tile_layer :: proc(type: Layer_Style, api_key := cstring("")) {
+switch_tile_layer :: proc(style: Layer_Style, api_key := cstring("")) {
     url: cstring
-    switch type {
-    case .Osm: url = OSM_URL
-    case .Thunderforest: url = THUNDERFOREST_URL
-    case .Mapbox_Satelite: url = MAPBOX_SATELITE_URL
-    case .Mapbox_Outdoors: url = MAPBOX_OUTDOORS_URL
+    max_zoom: i32
+    tile_size: f64
+    switch style {
+    case .Osm: {
+        url = OSM_URL
+        max_zoom = 19
+        tile_size = 256
+    }
+    case .Thunderforest: {
+        url = THUNDERFOREST_URL
+        max_zoom = 22
+        tile_size = 256
+    }
+    case .Mapbox_Satelite: {
+        url = MAPBOX_SATELITE_URL
+        max_zoom = 22
+        tile_size = 512
+    }
+    case .Mapbox_Outdoors: {
+        url = MAPBOX_OUTDOORS_URL
+        max_zoom = 22
+        tile_size = 512
+    }
     }
     req_state.tile_layer = Tile_Layer {
-        type = type,
+        style = style,
         url = url,
         api_key = api_key,
+        max_zoom = max_zoom,
+        tile_size = tile_size,
     }
 }
 
@@ -81,7 +106,7 @@ deinit_tile_fetching :: proc() {
 }
 
 get_tile_url :: proc(tile: Tile) -> cstring {
-    if req_state.tile_layer.type == .Osm {
+    if req_state.tile_layer.style == .Osm {
         return rl.TextFormat(req_state.tile_layer.url, tile.zoom, tile.x, tile.y)
     } else {
         return rl.TextFormat(req_state.tile_layer.url, tile.zoom, tile.x, tile.y,
@@ -119,8 +144,15 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 
                 tile := chunk.tile
 
-                // upload texture
-                img := rl.LoadImageFromMemory(".png", raw_data(chunk.data), i32(len(chunk.data)))
+                ft: cstring = ".png" 
+                style := req_state.tile_layer.style
+                if style == .Mapbox_Satelite || style == .Mapbox_Outdoors {
+                    ft = ".jpg"
+                }
+                // This guy allocates??
+                img := rl.LoadImageFromMemory(ft, raw_data(chunk.data), i32(len(chunk.data)))
+                delete(chunk.data)
+
                 if img.data != nil {
                     texture := rl.LoadTextureFromImage(img)
                     rl.SetTextureFilter(texture, .BILINEAR)
@@ -134,16 +166,13 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                         texture = texture,
                         last_accessed = rl.GetTime(),
                     }
+                    rl.UnloadImage(img)
                 } else {
                     delete_key(cache, tile)
-                    log.error("Could not get tile, maybe bad api key?")
+                    log.error("Could not load tile, maybe bad api key?")
                 }
-
-                delete(chunk.data)
             } else {
-                // free memory on fail
-                delete(chunk.data)
-                log.error("Could not get tile, maybe bad api key?")
+                log.error("Request failed, maybe bad api key?")
             }
 
             // cleanup
@@ -172,18 +201,34 @@ request_tile :: proc(tile: Tile) {
 }
 
 // tiles that have a last use longer than timeout are evicted
-// don't evict tiles that contain the camera
-evict_cache :: proc(cache: ^Tile_Cache) {
-    // TODO: Implement
-    for _, item in cache {
+// don't evict fallback tiles that contain the camera
+evict_cache :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) {
+    for key, item in cache {
+        if !item.ready do continue
+
+        time := rl.GetTime()
+        if time - item.last_accessed < CACHE_TIMEOUT {
+            continue
+        }
+        // check if this is a fallback tile
+        coord := scale_mercator(map_screen.center, map_screen.zoom, item.zoom)
+        screen_tile := mercator_to_tile(coord, item.zoom)
+        tile := mercator_to_tile(item.coord, item.zoom)
+        if tile == screen_tile {
+            continue
+        }
+
         rl.UnloadTexture(item.texture)
         free(item)
+        delete_key(cache, key)
     }
+    //shrink_map(cache)
 }
 
 clear_cache :: proc(cache: ^Tile_Cache) {
-    for _, item in cache {
+    for key, item in cache {
         rl.UnloadTexture(item.texture)
         free(item)
+        delete_key(cache, key)
     }
 }
