@@ -1,6 +1,8 @@
 - [x] Async Tile fetching
 - [x] Panning and zooming (CHECK BOUNDS)
+- [x] cli flags for gpx/token
 - [ ] Cache eviction
 - [ ] GPX parsing and rendering
-- [ ] UI for stats and loading gpx
+- [ ] GUI for stats, plots, map style
+- [ ] Mapbox tiles with Api token paste
 - [ ] WEB

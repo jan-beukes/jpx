@@ -1,4 +1,4 @@
-package main
+package jpx
 
 import "core:mem"
 import "core:fmt"
@@ -21,31 +21,72 @@ Tile_Chunk :: struct {
     data: [dynamic]u8,
 }
 
-CACHE_LIMIT :: 128
-CACHE_TIMEOUT :: 5.0
 Tile_Cache :: map[Tile]^Tile_Data
 
-OSM_DOMAIN: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
+Layer_Style :: enum i32 {
+    Osm,
+    Thunderforest,
+    Mapbox_Satelite,
+    Mapbox_Outdoors,
+}
+
+Tile_Layer :: struct {
+    type: Layer_Style,
+    url: cstring,
+    api_key: cstring,
+}
+
+CACHE_LIMIT :: 128
+CACHE_TIMEOUT :: 5.0
+
+OSM_URL: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
+THUNDERFOREST_URL: cstring : "https://tile.thunderforest.com/outdoors/%d/%d/%d.png?apikey=%s"
+MAPBOX_SATELITE_URL: cstring : ""
+MAPBOX_OUTDOORS_URL: cstring : ""
 
 @(private="file")
 request_context: runtime.Context
 
-multi_handle: rawptr
-active_requests: i32
+req_state: struct {
+    m_handle: rawptr, // the global multi handle for libcurl
+    active_requests: i32,
+    tile_layer: Tile_Layer,
+}
 
-init_tile_fetching :: proc() {
+init_tile_fetching :: proc(layer_style: Layer_Style, api_key: cstring) {
     request_context = context
-    multi_handle = curl.multi_init()
-    active_requests = 0
+    req_state.m_handle = curl.multi_init()
+    req_state.active_requests = 0
+    switch_tile_layer(layer_style, api_key)
+}
+
+switch_tile_layer :: proc(type: Layer_Style, api_key := cstring("")) {
+    url: cstring
+    switch type {
+    case .Osm: url = OSM_URL
+    case .Thunderforest: url = THUNDERFOREST_URL
+    case .Mapbox_Satelite: url = MAPBOX_SATELITE_URL
+    case .Mapbox_Outdoors: url = MAPBOX_OUTDOORS_URL
+    }
+    req_state.tile_layer = Tile_Layer {
+        type = type,
+        url = url,
+        api_key = api_key,
+    }
 }
 
 deinit_tile_fetching :: proc() {
-    curl.multi_cleanup(multi_handle)
-    active_requests = 0
+    curl.multi_cleanup(req_state.m_handle)
+    req_state.active_requests = 0
 }
 
 get_tile_url :: proc(tile: Tile) -> cstring {
-    return rl.TextFormat(OSM_DOMAIN, tile.zoom, tile.x, tile.y)
+    if req_state.tile_layer.type == .Osm {
+        return rl.TextFormat(req_state.tile_layer.url, tile.zoom, tile.x, tile.y)
+    } else {
+        return rl.TextFormat(req_state.tile_layer.url, tile.zoom, tile.x, tile.y,
+            req_state.tile_layer.api_key)
+    }
 }
 
 write_proc :: proc "c" (content: rawptr, size, nmemb: uint, user_data: rawptr) -> uint {
@@ -60,11 +101,11 @@ write_proc :: proc "c" (content: rawptr, size, nmemb: uint, user_data: rawptr) -
 
 poll_requests :: proc(cache: ^Tile_Cache) {
 
-    curl.multi_perform(multi_handle, &active_requests)
+    curl.multi_perform(req_state.m_handle, &req_state.active_requests)
 
     msg: ^curl.CURLMsg
     msgs_left: i32
-    msg = curl.multi_info_read(multi_handle, &msgs_left)
+    msg = curl.multi_info_read(req_state.m_handle, &msgs_left)
     for msg != nil {
         // this one is done
         if msg.msg == curl.MSG_DONE {
@@ -80,38 +121,41 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 
                 // upload texture
                 img := rl.LoadImageFromMemory(".png", raw_data(chunk.data), i32(len(chunk.data)))
-                texture := rl.LoadTextureFromImage(img)
-                rl.SetTextureFilter(texture, .BILINEAR)
-                // Mirrored wrap fixes bilinear filter sampling on edges
-                rl.SetTextureWrap(texture, .MIRROR_REPEAT) 
-
-                item := cache[tile]
-                item^ = Tile_Data {
-                    ready = true,
-                    coord = tile_to_mercator(chunk.tile),
-                    zoom = tile.zoom,
-                    texture = texture,
-                    last_accessed = rl.GetTime(),
+                if img.data != nil {
+                    texture := rl.LoadTextureFromImage(img)
+                    rl.SetTextureFilter(texture, .BILINEAR)
+                    // Mirrored wrap fixes bilinear filter sampling on edges
+                    rl.SetTextureWrap(texture, .MIRROR_REPEAT) 
+                    item := cache[tile]
+                    item^ = Tile_Data {
+                        ready = true,
+                        coord = tile_to_mercator(chunk.tile),
+                        zoom = tile.zoom,
+                        texture = texture,
+                        last_accessed = rl.GetTime(),
+                    }
+                } else {
+                    delete_key(cache, tile)
+                    log.error("Could not get tile, maybe bad api key?")
                 }
 
                 delete(chunk.data)
             } else {
                 // free memory on fail
                 delete(chunk.data)
-                log.error("Tile download failed")
+                log.error("Could not get tile, maybe bad api key?")
             }
 
             // cleanup
             free(chunk)
-            curl.multi_remove_handle(multi_handle, handle)
+            curl.multi_remove_handle(req_state.m_handle, handle)
             curl.easy_cleanup(handle)
         }
-        msg = curl.multi_info_read(multi_handle, &msgs_left)
+        msg = curl.multi_info_read(req_state.m_handle, &msgs_left)
     }
 }
 
 request_tile :: proc(tile: Tile) {
-
     // allocate a chunk
     chunk := new(Tile_Chunk)
     chunk.tile = tile
@@ -124,7 +168,7 @@ request_tile :: proc(tile: Tile) {
     curl.easy_setopt(handle, curl.OPT_WRITEFUNCTION, write_proc)
     curl.easy_setopt(handle, curl.OPT_PRIVATE, chunk)
 
-    curl.multi_add_handle(multi_handle, handle)
+    curl.multi_add_handle(req_state.m_handle, handle)
 }
 
 // tiles that have a last use longer than timeout are evicted

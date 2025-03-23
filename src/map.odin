@@ -1,4 +1,6 @@
-package main
+package jpx
+
+// Map transformations and tile handleing
 
 import "core:math"
 import "core:slice"
@@ -151,6 +153,7 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
 
     item, ok := cache[tile]
     if ok && item.ready {
+        item.last_accessed = rl.GetTime()
         return item
     }
 
@@ -162,7 +165,6 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
         cache[tile] = tile_data
     } 
 
-
     // Fallback
     fallback_limit := max(tile.zoom - ZOOM_FALLBACK_LIMIT, 0)
     fallback_tile := tile
@@ -172,6 +174,7 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
         fallback_tile.zoom -= 1
         item, ok := cache[fallback_tile]
         if ok && item.ready {
+            item.last_accessed = rl.GetTime()
             return item
         }
     }

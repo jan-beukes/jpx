@@ -1,6 +1,10 @@
-package main
+package jpx
 
 import "core:fmt"
+import "core:strconv"
+import "core:os"
+import "core:strings"
+import "core:flags"
 import "core:log"
 import "core:math"
 import rl "vendor:raylib"
@@ -12,19 +16,40 @@ Map_Screen :: struct {
     scale: f32,
 }
 
-WINDOW_WIDTH :: 1280
-WINDOW_MIN_SIZE :: 300
-WINDOW_HEIGHT :: 720
+Flags :: struct {
+    input_file: string,
+    api_key: string,
+    layer_style: Layer_Style,
+}
 
-MAX_SCALE :: 1.8
+WINDOW_WIDTH :: 1280
+WINDOW_HEIGHT :: 720
+WINDOW_MIN_SIZE :: 300
+
+MAX_SCALE :: 1.5
 MIN_SCALE :: MAX_SCALE / 2.0
 ZOOM_STEP :: 0.1
 
+DARKGRAY :: rl.Color{100, 100, 100, 255}
+
 TEST_LOC :: Coord{18.8843, -33.9467}
+
+USAGE :: 
+`
+Usage: jpx [file] [OPTIONS]
+
+file formats: gpx
+
+OPTIONS:
+    -s         map style (0 - 3)
+    -k         map api key
+`
 
 // global state
 map_screen: Map_Screen
 cache: Tile_Cache
+is_track_open: bool
+
 
 FADED_BLACK :: rl.Color{0, 0, 0, 100}
 draw_ui :: proc() {
@@ -147,27 +172,77 @@ update :: proc() {
 
     //---Render---
     rl.BeginDrawing()
-    rl.ClearBackground(rl.RAYWHITE)
+    rl.ClearBackground(DARKGRAY)
 
     src := rl.Rectangle{0, 0, TILE_SIZE, TILE_SIZE}
     for item in tiles {
         pos := item.coord
         tile_rect := get_tile_rect(map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
-        rl.DrawRectangleLinesEx(tile_rect, 1, rl.ORANGE)
+        //rl.DrawRectangleLinesEx(tile_rect, 1, rl.ORANGE)
     }
 
     draw_ui()
     rl.EndDrawing()
 }
 
+parse_flags :: proc() -> Flags {
+    argv := os.args
+
+    if len(argv) < 2 do return {}
+
+    flags: Flags
+
+    for i := 1; i < len(argv); i += 1 {
+        is_last := i == len(argv) - 1
+        if strings.compare(argv[i], "-s") == 0 {
+            if is_last {
+                fmt.eprint(USAGE); os.exit(1)
+            }
+            i += 1
+            num, ok := strconv.parse_int(argv[i])
+            if !ok || num >= len(Layer_Style) {
+                fmt.eprint(USAGE)
+                os.exit(1)
+            }
+            flags.layer_style = Layer_Style(num)
+        } else if strings.compare(argv[i], "-k") == 0 {
+            if is_last {
+                fmt.eprint(USAGE); os.exit(1)
+            }
+            i += 1
+            flags.api_key = argv[i]
+        // file must always be first if it is provided
+        } else if i == 1 {
+            flags.input_file = argv[i]
+        } else {
+            fmt.eprint(USAGE)
+            os.exit(1)
+        }
+    }
+    return flags
+}
+
 main :: proc() {
-    context.logger = log.create_console_logger(opt = log.Options{.Level, .Terminal_Color})
+    context.logger = log.create_console_logger(
+        .Debug when ODIN_DEBUG else .Info,
+        log.Options{.Level, .Terminal_Color},
+    )
+
+    flags := parse_flags()
+    if flags.input_file == "" {
+        is_track_open = false
+    }
+    // TODO: read keys from a jpx.key file
+    api_key := strings.clone_to_cstring(flags.api_key)
+    init_tile_fetching(flags.layer_style, api_key)
+    log.debug(flags)
 
     // Init
-    rl.SetTraceLogLevel(.WARNING)
+    rl.SetTraceLogLevel(.ERROR)
     rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
+    rl.SetTargetFPS(60) // idk
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
     defer rl.CloseWindow()
 
@@ -178,8 +253,6 @@ main :: proc() {
         zoom = 13,
         scale = 1.0,
     }
-
-    init_tile_fetching()
 
     // cache a few large tiles
     tile := mercator_to_tile(map_screen.center, map_screen.zoom)
@@ -195,5 +268,6 @@ main :: proc() {
     for !rl.WindowShouldClose() {
         update()
     }
+
     clear_cache(&cache)
 }
