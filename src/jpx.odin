@@ -52,6 +52,11 @@ OPTIONS:
 map_screen: Map_Screen
 cache: Tile_Cache
 is_track_open: bool
+g_font: rl.Font
+
+draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
+    rl.DrawTextEx(g_font, text, pos, size, 0, color)
+}
 
 draw_ui :: proc() {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
@@ -59,28 +64,28 @@ draw_ui :: proc() {
     when ODIN_DEBUG {
         overlay := rl.Vector2 {
             f32(WINDOW_HEIGHT) * 0.35,
-            f32(WINDOW_HEIGHT) * 0.20,
+            f32(WINDOW_HEIGHT) * 0.15,
         }
         rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
 
-        padding := i32(overlay.y * 0.05)
-        font_size := i32(overlay.y / 8.0)
-        cursor := [2]i32 {0, 0}
-        rl.DrawText(rl.TextFormat("Cache: %d tiles", len(cache)), cursor.x, cursor.y,
-            font_size, rl.ORANGE)
-        cursor.y += font_size + padding
-        rl.DrawText(rl.TextFormat("Zoom: %d", map_screen.zoom),
-            cursor.x, cursor.y, font_size, rl.ORANGE)
+        padding := overlay.y * 0.05
+        font_size: f32 = WINDOW_HEIGHT / 40.0
 
+        cursor: rl.Vector2
+        draw_text(rl.TextFormat("Cache: %d tiles", len(cache)), cursor, font_size, rl.ORANGE)
+
+        cursor.y += font_size + padding
+        draw_text(rl.TextFormat("Zoom: %d", map_screen.zoom), cursor, font_size, rl.ORANGE)
         mouse_coord := mercator_to_coord(screen_to_map(map_screen, rl.GetMousePosition()),
             map_screen.zoom)
+
         cursor.y += font_size + padding
-        rl.DrawText(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
-            cursor.x, cursor.y, font_size, rl.ORANGE)
+        draw_text(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
+            cursor, font_size, rl.ORANGE)
 
         cursor.y += font_size + padding
         text := fmt.ctprint("Map Style:", req_state.tile_layer.style)
-        rl.DrawText(text, cursor.x, cursor.y, font_size, rl.ORANGE)
+        draw_text(text, cursor, font_size, rl.ORANGE)
 
         free_all(context.temp_allocator)
     }
@@ -178,8 +183,6 @@ handle_input :: proc() {
             rl.MaximizeWindow()
         }
     }
-
-
 }
 
 update :: proc() {
@@ -268,6 +271,10 @@ main :: proc() {
     rl.SetTargetFPS(60) // idk
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
     defer rl.CloseWindow()
+
+    // resource
+    g_font = rl.LoadFontEx("res/font.ttf", 96, nil, 0)
+    rl.SetTextureFilter(g_font.texture, .BILINEAR)
 
     map_screen = Map_Screen {
         center = coord_to_mercator(TEST_LOC, 13),
