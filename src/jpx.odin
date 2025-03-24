@@ -9,6 +9,7 @@ import "core:flags"
 import "core:time"
 import "core:log"
 import "core:math"
+import "core:math/linalg"
 import rl "vendor:raylib"
 
 Map_Screen :: struct {
@@ -27,10 +28,15 @@ Flags :: struct {
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
+FPS :: 60
 
-MAX_SCALE :: 1.2
+MAX_SCALE :: 1.0
 MIN_SCALE :: MAX_SCALE / 2.0
-ZOOM_STEP :: 0.1
+
+ZOOM_STEP :: 0.2
+ZOOM_FRAMES :: 5
+MOVE_FRICTION :: 2400
+MAX_SPEED :: 1800
 
 DARKGRAY :: rl.Color{100, 100, 100, 255}
 FADED_BLACK :: rl.Color{0, 0, 0, 100}
@@ -52,7 +58,6 @@ OPTIONS:
 map_screen: Map_Screen
 cache: Tile_Cache
 last_eviction: f64
-
 is_track_open: bool
 g_font: rl.Font
 
@@ -63,6 +68,7 @@ draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
 draw_ui :: proc() {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
 
+    // Debug UI
     when ODIN_DEBUG {
         overlay := rl.Vector2 {
             f32(WINDOW_HEIGHT) * 0.35,
@@ -132,40 +138,84 @@ handle_input :: proc() {
 
     //---Map Movement---
 
+    // movement state
+    @(static) move_state: struct {
+        zoom_frame: i32,
+        zoom_step: f32,
+        mouse_zoom: bool,
+
+        mouse_held: bool,
+        velocity: rl.Vector2,
+    }
+
     // Zooming
     if scroll != 0.0 {
+        move_state.mouse_zoom = true
+        move_state.zoom_frame = ZOOM_FRAMES
+        move_state.zoom_step = scroll > 0.0 ? ZOOM_STEP : -ZOOM_STEP
+    } else if rl.IsKeyPressed(.EQUAL) {
+        move_state.mouse_zoom = false
+        move_state.zoom_frame = 2 * ZOOM_FRAMES
+        move_state.zoom_step = 2 * ZOOM_STEP
+    } else if rl.IsKeyPressed(.MINUS) {
+        move_state.mouse_zoom = false
+        move_state.zoom_frame = 2 * ZOOM_FRAMES
+        move_state.zoom_step = -2 * ZOOM_STEP
+    }
+
+    if move_state.zoom_frame > 0 {
         prev_zoom := map_screen.zoom
         prev_mouse_map_pos := screen_to_map(map_screen, mouse_pos)
-        max_zoom := req_state.tile_layer.max_zoom
 
-        if scroll > 0.0 {
-            zoom_map(ZOOM_STEP, window_width, window_height)
+        zoom_map(move_state.zoom_step / ZOOM_FRAMES, window_width, window_height)
+        move_state.zoom_frame -= 1
+
+        if move_state.mouse_zoom {
             if map_screen.zoom > prev_zoom {
                 prev_mouse_map_pos *= 2.0
             }
-        } else if scroll < 0.0 {
-            zoom_map(-ZOOM_STEP, window_width, window_height)
             if map_screen.zoom < prev_zoom {
                 prev_mouse_map_pos *= 0.5
             }
+            mouse_map_pos := screen_to_map(map_screen, mouse_pos)
+            map_screen.center += (prev_mouse_map_pos - mouse_map_pos)
         }
-
-        mouse_map_pos := screen_to_map(map_screen, mouse_pos)
-        map_screen.center += (prev_mouse_map_pos - mouse_map_pos)
-    } else if rl.IsKeyPressed(.EQUAL) {
-            zoom_map(4*ZOOM_STEP, window_width, window_height)
-    } else if rl.IsKeyPressed(.MINUS) {
-            zoom_map(-4*ZOOM_STEP, window_width, window_height)
     }
 
     // Panning
+    dt: f32 = (1.0 / FPS)
     if rl.IsMouseButtonDown(.LEFT) {
         rl.SetMouseCursor(.RESIZE_ALL)
+        move_state.mouse_held = true
+
+        move_state.velocity = {0.0, 0.0}
         delta := rl.GetMouseDelta() / map_screen.scale
         map_screen.center -= {f64(delta.x), f64(delta.y)}
     } else if rl.IsMouseButtonReleased(.LEFT) {
         rl.SetMouseCursor(.DEFAULT)
+        if move_state.mouse_held {
+            move_state.mouse_held = false
+            delta := rl.GetMouseDelta() / map_screen.scale
+            move_state.velocity = - (delta / dt)
+            if linalg.length(move_state.velocity) > MAX_SPEED {
+                move_state.velocity = MAX_SPEED * linalg.normalize(move_state.velocity)
+            }
+        }
     }
+    // update from panning velocity
+    speed := linalg.length(move_state.velocity)
+    if speed > 0 {
+        dr := move_state.velocity * dt
+        map_screen.center += {f64(dr.x), f64(dr.y)}
+        speed -= MOVE_FRICTION * dt
+
+        if speed <= 0 {
+            move_state.velocity = {0, 0}
+        } else {
+            move_state.velocity = speed * linalg.normalize(move_state.velocity)
+        }
+    }
+
 
     // clamp map screen position
     tile_size := req_state.tile_layer.tile_size
@@ -202,7 +252,7 @@ update :: proc() {
 
     //---Render---
     rl.BeginDrawing()
-    rl.ClearBackground(DARKGRAY)
+    rl.ClearBackground(req_state.tile_layer.clear_color)
 
     tile_size := req_state.tile_layer.tile_size
     src := rl.Rectangle{0, 0, f32(tile_size), f32(tile_size)}
@@ -210,7 +260,7 @@ update :: proc() {
         pos := item.coord
         tile_rect := get_tile_rect(map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
-        rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
+        //rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
     }
 
     draw_ui()
@@ -273,7 +323,7 @@ main :: proc() {
     rl.SetTraceLogLevel(.ERROR)
     rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
-    rl.SetTargetFPS(60) // idk
+    rl.SetTargetFPS(FPS) // idk
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
     defer rl.CloseWindow()
 

@@ -1,6 +1,6 @@
 package jpx
 
-// Map transformations and tile handleing
+// Map transformations and tile handling
 
 import "core:math"
 import "core:slice"
@@ -142,6 +142,7 @@ get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Recta
 // if the tile is not present request tile and look for possible fallbacks
 add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cache) {
     n := i32(1 << u32(tile.zoom))
+
     if tile.x >= n || tile.x < 0 {
         return
     } else if tile.y >= n || tile.y < 0 {
