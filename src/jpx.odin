@@ -28,7 +28,7 @@ WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
 
-MAX_SCALE :: 1.1
+MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
 ZOOM_STEP :: 0.1
 
@@ -51,6 +51,8 @@ OPTIONS:
 // global state
 map_screen: Map_Screen
 cache: Tile_Cache
+last_eviction: f64
+
 is_track_open: bool
 g_font: rl.Font
 
@@ -97,8 +99,6 @@ handle_input :: proc() {
     zoom_map :: proc(step: f32, window_width, window_height: i32) {
         // This depends on tile layer
         max_zoom := req_state.tile_layer.max_zoom
-        if map_screen.zoom == max_zoom && step > 0 do return
-        if map_screen.zoom == MIN_ZOOM && step < 0 do return
 
         map_screen.scale += step
 
@@ -141,7 +141,7 @@ handle_input :: proc() {
             if map_screen.zoom > prev_zoom {
                 prev_mouse_map_pos *= 2.0
             }
-        } else if scroll < 0.0 && map_screen.zoom > 0 {
+        } else if scroll < 0.0 && map_screen.zoom > MIN_ZOOM {
             zoom_map(-ZOOM_STEP, window_width, window_height)
             if map_screen.zoom < prev_zoom {
                 prev_mouse_map_pos *= 0.5
@@ -187,8 +187,9 @@ handle_input :: proc() {
 
 update :: proc() {
     handle_input()
-    if len(cache) > CACHE_LIMIT {
+    if rl.GetTime() - last_eviction > CACHE_TIMEOUT {
         evict_cache(&cache, map_screen)
+        last_eviction = rl.GetTime()
     }
 
     // get tiles

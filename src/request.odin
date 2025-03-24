@@ -39,8 +39,8 @@ Tile_Layer :: struct {
     tile_size: f64,
 }
 
-CACHE_LIMIT :: 100
-CACHE_TIMEOUT :: 3.0
+CACHE_LIMIT :: 512
+CACHE_TIMEOUT :: 2.0
 
 OSM_URL: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 THUNDERFOREST_URL: cstring : "https://tile.thunderforest.com/outdoors/%d/%d/%d.png?apikey=%s"

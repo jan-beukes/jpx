@@ -149,12 +149,13 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
     }
 
     // request the tile
-    if !ok {
+    if !ok && len(cache) < CACHE_LIMIT {
         request_tile(tile)
         // allocate so we know that this tile is busy
         tile_data := new(Tile_Data)
         cache[tile] = tile_data
     } 
+
 
     // Fallback
     fallback_limit := max(tile.zoom - ZOOM_FALLBACK_LIMIT, 0)
