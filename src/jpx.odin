@@ -99,6 +99,8 @@ handle_input :: proc() {
     zoom_map :: proc(step: f32, window_width, window_height: i32) {
         // This depends on tile layer
         max_zoom := req_state.tile_layer.max_zoom
+        if step > 0 && map_screen.zoom == max_zoom do return
+        if step < 0 && map_screen.zoom == MIN_ZOOM do return
 
         map_screen.scale += step
 
@@ -136,12 +138,12 @@ handle_input :: proc() {
         prev_mouse_map_pos := screen_to_map(map_screen, mouse_pos)
         max_zoom := req_state.tile_layer.max_zoom
 
-        if scroll > 0.0 && map_screen.zoom < max_zoom {
+        if scroll > 0.0 {
             zoom_map(ZOOM_STEP, window_width, window_height)
             if map_screen.zoom > prev_zoom {
                 prev_mouse_map_pos *= 2.0
             }
-        } else if scroll < 0.0 && map_screen.zoom > MIN_ZOOM {
+        } else if scroll < 0.0 {
             zoom_map(-ZOOM_STEP, window_width, window_height)
             if map_screen.zoom < prev_zoom {
                 prev_mouse_map_pos *= 0.5
@@ -186,11 +188,13 @@ handle_input :: proc() {
 }
 
 update :: proc() {
-    handle_input()
+
     if rl.GetTime() - last_eviction > CACHE_TIMEOUT {
         evict_cache(&cache, map_screen)
         last_eviction = rl.GetTime()
     }
+
+    handle_input()
 
     // get tiles
     poll_requests(&cache)
@@ -206,7 +210,7 @@ update :: proc() {
         pos := item.coord
         tile_rect := get_tile_rect(map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
-        //rl.DrawRectangleLinesEx(tile_rect, 1, rl.ORANGE)
+        rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
     }
 
     draw_ui()
@@ -217,11 +221,9 @@ update :: proc() {
 
 parse_flags :: proc() -> Flags {
     argv := os.args
-
     if len(argv) < 2 do return {}
 
     flags: Flags
-
     for i := 1; i < len(argv); i += 1 {
         is_last := i == len(argv) - 1
         if strings.compare(argv[i], "-s") == 0 {

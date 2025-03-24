@@ -1,6 +1,6 @@
 # JPX
 
-Slippy map renderer for gps track viewing
+Raster slippy map renderer for gps track viewing
 
 **Dependencies**
 - raylib

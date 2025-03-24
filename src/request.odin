@@ -40,7 +40,7 @@ Tile_Layer :: struct {
 }
 
 CACHE_LIMIT :: 512
-CACHE_TIMEOUT :: 2.0
+CACHE_TIMEOUT :: 1.5
 
 OSM_URL: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 THUNDERFOREST_URL: cstring : "https://tile.thunderforest.com/outdoors/%d/%d/%d.png?apikey=%s"
@@ -211,10 +211,9 @@ evict_cache :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) {
             continue
         }
         // check if this is a fallback tile
-        coord := scale_mercator(map_screen.center, map_screen.zoom, item.zoom)
-        screen_tile := mercator_to_tile(coord, item.zoom)
-        tile := mercator_to_tile(item.coord, item.zoom)
-        if tile == screen_tile {
+        coord := scale_mercator(map_screen.center, map_screen.zoom, key.zoom)
+        screen_tile := mercator_to_tile(coord, key.zoom)
+        if key == screen_tile {
             continue
         }
 
