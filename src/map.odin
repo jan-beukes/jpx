@@ -19,7 +19,7 @@ Tile :: struct {
     zoom: i32,
 }
 
-MIN_ZOOM :: 1
+MIN_ZOOM :: 2
 ZOOM_FALLBACK_LIMIT :: 4
 
 // from lon/lat to mercator coordinate
@@ -132,20 +132,20 @@ get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Recta
     return {pos.x, pos.y, size, size}
 }
 
-// get the tile from cache
+// get the tile from cache and add it to the list
 // if the tile is not present request tile and look for possible fallbacks
-get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
+add_tile :: proc(list: ^[dynamic]^Tile_Data, tile: Tile, cache: ^Tile_Cache) {
     n := i32(1 << u32(tile.zoom))
     if tile.x >= n || tile.x < 0 {
-        return nil
+        return
     } else if tile.y >= n || tile.y < 0 {
-        return nil
+        return
     }
 
     item, ok := cache[tile]
     if ok && item.ready {
         item.last_accessed = rl.GetTime()
-        return item
+        append(list, item)
     }
 
     // request the tile
@@ -167,19 +167,18 @@ get_tile :: proc(cache: ^Tile_Cache, tile: Tile) -> ^Tile_Data {
         item, ok := cache[fallback_tile]
         if ok && item.ready {
             item.last_accessed = rl.GetTime()
-            return item
+            append(list, item)
         }
     }
 
-    return nil
 }
 
 // calculate which tiles need to be rendered and add them to the list
 // The tiles array will be sorted with lower zoom levels first
-map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) -> []^Tile_Data {
+map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen, allocator :=
+    context.temp_allocator) -> []^Tile_Data {
 
-    // Surely this will be fine
-    @(static) tiles: [256]^Tile_Data
+    tiles := make([dynamic]^Tile_Data, allocator)
 
     origin := map_screen.center - {
         0.5 * f64(map_screen.width),
@@ -192,17 +191,14 @@ map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) -> []^Tile_Dat
     for y := start_pos.y; y < origin.y + f64(map_screen.height); y += tile_size {
         for x := start_pos.x; x < origin.x + f64(map_screen.width); x += tile_size {
             tile := mercator_to_tile({x, y}, map_screen.zoom)
-            tile_data := get_tile(cache, tile)
-            if tile_data == nil {
-                continue
-            } else {
-                tiles[count] = tile_data
-                count += 1
-            }
+
+            add_tile(&tiles, tile, cache)
         }
     }
-    slice.sort_by(tiles[:count], proc(l, r: ^Tile_Data) -> bool {
+
+    slice.sort_by(tiles[:], proc(l, r: ^Tile_Data) -> bool {
         return l.zoom < r.zoom
     })
-    return tiles[:count]
+
+    return tiles[:]
 }

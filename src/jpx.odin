@@ -70,6 +70,8 @@ draw_ui :: proc() {
         }
         rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
 
+        rl.DrawFPS(10, window_height - 20)
+
         padding := overlay.y * 0.05
         font_size: f32 = WINDOW_HEIGHT / 40.0
 
@@ -88,8 +90,6 @@ draw_ui :: proc() {
         cursor.y += font_size + padding
         text := fmt.ctprint("Map Style:", req_state.tile_layer.style)
         draw_text(text, cursor, font_size, rl.ORANGE)
-
-        free_all(context.temp_allocator)
     }
 
 }
@@ -211,6 +211,8 @@ update :: proc() {
 
     draw_ui()
     rl.EndDrawing()
+
+    free_all(context.temp_allocator)
 }
 
 parse_flags :: proc() -> Flags {
