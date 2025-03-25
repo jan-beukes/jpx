@@ -3,8 +3,10 @@
 package jpx
 
 import "base:runtime"
+import "core:os"
 import "core:log"
 import "core:mem"
+
 import "curl"
 
 import rl "vendor:raylib"
@@ -32,7 +34,6 @@ _write_proc :: proc "c" (content: rawptr, size, nmemb: uint, user_data: rawptr) 
 }
 
 poll_requests :: proc(cache: ^Tile_Cache) {
-
     curl.multi_perform(req_state.m_handle, &req_state.active_requests)
 
     msg: ^curl.CURLMsg

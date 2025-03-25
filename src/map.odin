@@ -20,7 +20,7 @@ Tile :: struct {
 }
 
 MIN_ZOOM :: 2
-ZOOM_FALLBACK_LIMIT :: 6
+ZOOM_FALLBACK_LIMIT :: 5
 
 // from lon/lat to mercator coordinate
 coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
@@ -147,7 +147,7 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
         return
     } else if tile.y >= n || tile.y < 0 {
         return
-    } else if count^ >= len(tiles) {
+    } else if count^ + 4 >= len(tiles) {
         return
     }
 
@@ -161,7 +161,8 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
     }
 
     // request the tile
-    if !ok && len(cache) < CACHE_LIMIT {
+    if !ok && len(cache) < CACHE_LIMIT && req_state.active_requests < MAX_ACTIVE_REQUESTS {
+        req_state.active_requests += 1
         request_tile(tile)
         // allocate so we know that this tile is busy
         tile_data := new(Tile_Data)

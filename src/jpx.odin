@@ -1,9 +1,9 @@
 package jpx
 
 import "core:fmt"
+import "core:os"
 import "core:mem"
 import "core:strconv"
-import "core:os"
 import "core:strings"
 import "core:flags"
 import "core:time"
@@ -30,10 +30,10 @@ WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
 FPS :: 60
 
-MAX_SCALE :: 1.0
+MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
 
-ZOOM_STEP :: 0.2
+ZOOM_STEP :: 0.3
 ZOOM_FRAMES :: 5
 MOVE_FRICTION :: 2400
 MAX_SPEED :: 1800
@@ -72,11 +72,11 @@ draw_ui :: proc() {
     when ODIN_DEBUG {
         overlay := rl.Vector2 {
             f32(WINDOW_HEIGHT) * 0.35,
-            f32(WINDOW_HEIGHT) * 0.15,
+            f32(WINDOW_HEIGHT) * 0.20,
         }
         rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
 
-        rl.DrawFPS(10, window_height - 20)
+        //rl.DrawFPS(10, window_height - 20)
 
         padding := overlay.y * 0.05
         font_size: f32 = WINDOW_HEIGHT / 40.0
@@ -85,10 +85,13 @@ draw_ui :: proc() {
         draw_text(rl.TextFormat("Cache: %d tiles", len(cache)), cursor, font_size, rl.ORANGE)
 
         cursor.y += font_size + padding
-        draw_text(rl.TextFormat("Zoom: %d", map_screen.zoom), cursor, font_size, rl.ORANGE)
+        draw_text(rl.TextFormat("Requests: %d", req_state.active_requests), cursor, font_size, rl.ORANGE)
+
+        cursor.y += font_size + padding
+        draw_text(rl.TextFormat("Zoom: %d | %.1fx", map_screen.zoom, map_screen.scale), cursor, font_size, rl.ORANGE)
+
         mouse_coord := mercator_to_coord(screen_to_map(map_screen, rl.GetMousePosition()),
             map_screen.zoom)
-
         cursor.y += font_size + padding
         draw_text(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
             cursor, font_size, rl.ORANGE)
@@ -105,7 +108,9 @@ handle_input :: proc() {
     zoom_map :: proc(step: f32, window_width, window_height: i32) {
         // This depends on tile layer
         max_zoom := req_state.tile_layer.max_zoom
-        if step > 0 && map_screen.zoom == max_zoom do return
+        if step > 0 && map_screen.zoom == max_zoom {
+            if map_screen.scale + step > MAX_SCALE do return
+        }
         if step < 0 && map_screen.zoom == MIN_ZOOM do return
 
         map_screen.scale += step
@@ -255,9 +260,9 @@ update :: proc() {
     rl.ClearBackground(req_state.tile_layer.clear_color)
 
     tile_size := req_state.tile_layer.tile_size
-    src := rl.Rectangle{0, 0, f32(tile_size), f32(tile_size)}
     for item in tiles {
         pos := item.coord
+        src := rl.Rectangle{0, 0, f32(item.texture.width), f32(item.texture.height)}
         tile_rect := get_tile_rect(map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
         //rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
@@ -314,7 +319,7 @@ main :: proc() {
     if flags.input_file == "" {
         is_track_open = false
     }
-    // TODO: read keys from a jpx.key file
+
     api_key := strings.clone_to_cstring(flags.api_key)
     init_tile_fetching(flags.layer_style, api_key)
     log.debug(flags)

@@ -3,7 +3,6 @@ package jpx
 import "core:mem"
 import "core:fmt"
 import "core:log"
-import stbi "vendor:stb/image"
 import "base:runtime"
 
 import rl "vendor:raylib"
@@ -40,8 +39,10 @@ Tile_Layer :: struct {
 }
 
 CACHE_LIMIT :: 400
+MAX_ACTIVE_REQUESTS :: 16
 CACHE_TIMEOUT :: 1.0
 
+// Prover URLS
 OSM_URL: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 THUNDERFOREST_URL: cstring : "https://tile.thunderforest.com/outdoors/%d/%d/%d.png?apikey=%s"
 MAPBOX_OUTDOORS_URL: cstring :
