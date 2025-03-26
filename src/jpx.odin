@@ -1,7 +1,8 @@
 package jpx
 
 import "core:fmt"
-import "core:os"
+import os "core:os/os2"
+import "core:path/filepath"
 import "core:mem"
 import "core:strconv"
 import "core:strings"
@@ -11,19 +12,6 @@ import "core:log"
 import "core:math"
 import "core:math/linalg"
 import rl "vendor:raylib"
-
-Map_Screen :: struct {
-    center: Mercator_Coord,
-    width, height: i32,
-    zoom: i32,
-    scale: f32,
-}
-
-Flags :: struct {
-    input_file: string,
-    api_key: string,
-    layer_style: Layer_Style,
-}
 
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
@@ -54,12 +42,31 @@ OPTIONS:
     -k         map api key
 `
 
+Map_Screen :: struct {
+    center: Mercator_Coord,
+    width, height: i32,
+    zoom: i32,
+    scale: f32,
+}
+
+Flags :: struct {
+    input_file: string,
+    api_key: string,
+    layer_style: Layer_Style,
+}
+
+State :: struct {
+    map_screen: Map_Screen,
+    cache: Tile_Cache,
+    last_eviction: f64,
+    is_track_open: bool,
+    cache_to_disk: bool,
+}
+
 // global state
-map_screen: Map_Screen
-cache: Tile_Cache
-last_eviction: f64
-is_track_open: bool
+state: State
 g_font: rl.Font
+
 
 draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
@@ -82,22 +89,22 @@ draw_ui :: proc() {
         font_size: f32 = WINDOW_HEIGHT / 40.0
 
         cursor: rl.Vector2
-        draw_text(rl.TextFormat("Cache: %d tiles", len(cache)), cursor, font_size, rl.ORANGE)
+        draw_text(rl.TextFormat("Cache: %d tiles", len(state.cache)), cursor, font_size, rl.ORANGE)
 
         cursor.y += font_size + padding
         draw_text(rl.TextFormat("Requests: %d", req_state.active_requests), cursor, font_size, rl.ORANGE)
 
         cursor.y += font_size + padding
-        draw_text(rl.TextFormat("Zoom: %d | %.1fx", map_screen.zoom, map_screen.scale), cursor, font_size, rl.ORANGE)
+        draw_text(rl.TextFormat("Zoom: %d | %.1fx", state.map_screen.zoom, state.map_screen.scale), cursor, font_size, rl.ORANGE)
 
-        mouse_coord := mercator_to_coord(screen_to_map(map_screen, rl.GetMousePosition()),
-            map_screen.zoom)
+        mouse_coord := mercator_to_coord(screen_to_map(state.map_screen, rl.GetMousePosition()),
+            state.map_screen.zoom)
         cursor.y += font_size + padding
         draw_text(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
             cursor, font_size, rl.ORANGE)
 
         cursor.y += font_size + padding
-        text := fmt.ctprint("Map Style:", req_state.tile_layer.style)
+        text := rl.TextFormat("Map Style: %s", req_state.tile_layer.name)
         draw_text(text, cursor, font_size, rl.ORANGE)
     }
 
@@ -108,32 +115,32 @@ handle_input :: proc() {
     zoom_map :: proc(step: f32, window_width, window_height: i32) {
         // This depends on tile layer
         max_zoom := req_state.tile_layer.max_zoom
-        if step > 0 && map_screen.zoom == max_zoom {
-            if map_screen.scale + step > MAX_SCALE do return
+        if step > 0 && state.map_screen.zoom == max_zoom {
+            if state.map_screen.scale + step > MAX_SCALE do return
         }
-        if step < 0 && map_screen.zoom == MIN_ZOOM do return
+        if step < 0 && state.map_screen.zoom == MIN_ZOOM do return
 
-        map_screen.scale += step
+        state.map_screen.scale += step
 
-        if map_screen.scale < MIN_SCALE {
-            diff := MIN_SCALE - map_screen.scale
-            map_screen.zoom = max(map_screen.zoom - 1, MIN_ZOOM)
-            map_screen.scale = MAX_SCALE - diff
-            map_screen.center *= 0.5
-        } else if map_screen.scale > MAX_SCALE {
-            diff := map_screen.scale - MAX_SCALE
-            map_screen.zoom = min(map_screen.zoom + 1, max_zoom)
-            map_screen.scale = MIN_SCALE + diff
-            map_screen.center *= 2
+        if state.map_screen.scale < MIN_SCALE {
+            diff := MIN_SCALE - state.map_screen.scale
+            state.map_screen.zoom = max(state.map_screen.zoom - 1, MIN_ZOOM)
+            state.map_screen.scale = MAX_SCALE - diff
+            state.map_screen.center *= 0.5
+        } else if state.map_screen.scale > MAX_SCALE {
+            diff := state.map_screen.scale - MAX_SCALE
+            state.map_screen.zoom = min(state.map_screen.zoom + 1, max_zoom)
+            state.map_screen.scale = MIN_SCALE + diff
+            state.map_screen.center *= 2
         }
-        map_screen.width = i32(f32(window_width) / map_screen.scale)
-        map_screen.height = i32(f32(window_height) / map_screen.scale)
+        state.map_screen.width = i32(f32(window_width) / state.map_screen.scale)
+        state.map_screen.height = i32(f32(window_height) / state.map_screen.scale)
     }
 
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
     if rl.IsWindowResized() {
-        map_screen.width = i32(f32(window_width) / map_screen.scale)
-        map_screen.height = i32(f32(window_height) / map_screen.scale)
+        state.map_screen.width = i32(f32(window_width) / state.map_screen.scale)
+        state.map_screen.height = i32(f32(window_height) / state.map_screen.scale)
     }
 
     mouse_pos := rl.GetMousePosition()
@@ -169,21 +176,21 @@ handle_input :: proc() {
     }
 
     if move_state.zoom_frame > 0 {
-        prev_zoom := map_screen.zoom
-        prev_mouse_map_pos := screen_to_map(map_screen, mouse_pos)
+        prev_zoom := state.map_screen.zoom
+        prev_mouse_map_pos := screen_to_map(state.map_screen, mouse_pos)
 
         zoom_map(move_state.zoom_step / ZOOM_FRAMES, window_width, window_height)
         move_state.zoom_frame -= 1
 
         if move_state.mouse_zoom {
-            if map_screen.zoom > prev_zoom {
+            if state.map_screen.zoom > prev_zoom {
                 prev_mouse_map_pos *= 2.0
             }
-            if map_screen.zoom < prev_zoom {
+            if state.map_screen.zoom < prev_zoom {
                 prev_mouse_map_pos *= 0.5
             }
-            mouse_map_pos := screen_to_map(map_screen, mouse_pos)
-            map_screen.center += (prev_mouse_map_pos - mouse_map_pos)
+            mouse_map_pos := screen_to_map(state.map_screen, mouse_pos)
+            state.map_screen.center += (prev_mouse_map_pos - mouse_map_pos)
         }
     }
 
@@ -194,13 +201,13 @@ handle_input :: proc() {
         move_state.mouse_held = true
 
         move_state.velocity = {0.0, 0.0}
-        delta := rl.GetMouseDelta() / map_screen.scale
-        map_screen.center -= {f64(delta.x), f64(delta.y)}
+        delta := rl.GetMouseDelta() / state.map_screen.scale
+        state.map_screen.center -= {f64(delta.x), f64(delta.y)}
     } else if rl.IsMouseButtonReleased(.LEFT) {
         rl.SetMouseCursor(.DEFAULT)
         if move_state.mouse_held {
             move_state.mouse_held = false
-            delta := rl.GetMouseDelta() / map_screen.scale
+            delta := rl.GetMouseDelta() / state.map_screen.scale
             move_state.velocity = - (delta / dt)
             if linalg.length(move_state.velocity) > MAX_SPEED {
                 move_state.velocity = MAX_SPEED * linalg.normalize(move_state.velocity)
@@ -211,7 +218,7 @@ handle_input :: proc() {
     speed := linalg.length(move_state.velocity)
     if speed > 0 {
         dr := move_state.velocity * dt
-        map_screen.center += {f64(dr.x), f64(dr.y)}
+        state.map_screen.center += {f64(dr.x), f64(dr.y)}
         speed -= MOVE_FRICTION * dt
 
         if speed <= 0 {
@@ -224,13 +231,13 @@ handle_input :: proc() {
 
     // clamp map screen position
     tile_size := req_state.tile_layer.tile_size
-    n := 1 << u32(map_screen.zoom)
+    n := 1 << u32(state.map_screen.zoom)
     border_left := 0.0
     border_right := tile_size * f64(n)
-    map_screen.center.x = clamp(map_screen.center.x, border_left, border_right)
+    state.map_screen.center.x = clamp(state.map_screen.center.x, border_left, border_right)
     border_top := 0.0
     border_bottom := tile_size * f64(n)
-    map_screen.center.y = clamp(map_screen.center.y, border_top, border_bottom)
+    state.map_screen.center.y = clamp(state.map_screen.center.y, border_top, border_bottom)
 
 
     if rl.IsKeyPressed(.F) {
@@ -244,16 +251,17 @@ handle_input :: proc() {
 
 update :: proc() {
 
-    if rl.GetTime() - last_eviction > CACHE_TIMEOUT {
-        evict_cache(&cache, map_screen)
-        last_eviction = rl.GetTime()
+    // only evict when we are near the limit
+    if rl.GetTime() - state.last_eviction > CACHE_TIMEOUT && len(state.cache) >= EVICTION_SIZE {
+        evict_cache(&state.cache, state.map_screen)
+        state.last_eviction = rl.GetTime()
     }
 
     handle_input()
 
     // get tiles
-    poll_requests(&cache)
-    tiles := map_get_tiles(&cache, map_screen)
+    poll_requests(&state.cache)
+    tiles := map_get_tiles(&state.cache, state.map_screen)
 
     //---Render---
     rl.BeginDrawing()
@@ -263,7 +271,7 @@ update :: proc() {
     for item in tiles {
         pos := item.coord
         src := rl.Rectangle{0, 0, f32(item.texture.width), f32(item.texture.height)}
-        tile_rect := get_tile_rect(map_screen, item)
+        tile_rect := get_tile_rect(state.map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
         //rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
     }
@@ -274,8 +282,7 @@ update :: proc() {
     free_all(context.temp_allocator)
 }
 
-parse_flags :: proc() -> Flags {
-    argv := os.args
+parse_flags :: proc(argv: []string) -> Flags {
     if len(argv) < 2 do return {}
 
     flags: Flags
@@ -315,9 +322,20 @@ main :: proc() {
         log.Options{.Level, .Terminal_Color},
     )
 
-    flags := parse_flags()
+    argv := os.args
+    flags := parse_flags(argv)
     if flags.input_file == "" {
-        is_track_open = false
+        state.is_track_open = false
+    }
+
+    // cache dir on desktop
+    when ODIN_OS != .JS {
+        dir := filepath.dir(argv[0])
+        os.change_directory(dir)
+        os.make_directory(CACHE_DIR)
+        state.cache_to_disk = true
+    } else {
+        state.cache_to_disk = false
     }
 
     api_key := strings.clone_to_cstring(flags.api_key)
@@ -336,7 +354,7 @@ main :: proc() {
     g_font = rl.LoadFontEx("res/font.ttf", 96, nil, 0)
     rl.SetTextureFilter(g_font.texture, .BILINEAR)
 
-    map_screen = Map_Screen {
+    state.map_screen = Map_Screen {
         center = coord_to_mercator(TEST_LOC, 13),
         width = WINDOW_WIDTH,
         height = WINDOW_HEIGHT,
@@ -345,14 +363,13 @@ main :: proc() {
     }
 
     // cache a few large tiles
-    tile := mercator_to_tile(map_screen.center, map_screen.zoom)
+    tile := mercator_to_tile(state.map_screen.center, state.map_screen.zoom)
     for _ in 0..<ZOOM_FALLBACK_LIMIT {
         tile.x /= 2
         tile.y /= 2
         tile.zoom -= 1
-        request_tile(tile)
-        tile_data := new(Tile_Data)
-        cache[tile] = tile_data
+
+        new_tile(&state.cache, tile)
     }
 
     for !rl.WindowShouldClose() {

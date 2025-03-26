@@ -1,9 +1,13 @@
+# CORE
+
 - [x] Async Tile fetching
 - [x] Panning and zooming (CHECK BOUNDS)
 - [x] cli flags for gpx/token
 - [x] Cache eviction
-- [ ] fix osm limit issue
-- [ ] Cache to disk for native and read async
+- [x] Cache to disk for native and read async
 - [ ] GPX parsing and rendering
-- [ ] GUI for stats, plots, map style
 - [ ] WEB
+
+# GUI
+- [ ] GUI for copyright, styles, disk caching
+- [ ] GUI for stats, plots, gpx loading

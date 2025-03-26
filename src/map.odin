@@ -8,6 +8,9 @@ import "core:log"
 import rl "vendor:raylib"
 import "core:fmt"
 
+MIN_ZOOM :: 2
+ZOOM_FALLBACK_LIMIT :: 5
+
 // (lon, lat) in degrees
 Coord :: [2]f64
 
@@ -18,9 +21,6 @@ Tile :: struct {
     x, y: i32,
     zoom: i32,
 }
-
-MIN_ZOOM :: 2
-ZOOM_FALLBACK_LIMIT :: 5
 
 // from lon/lat to mercator coordinate
 coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
@@ -160,15 +160,13 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
         return
     }
 
-    // request the tile
-    if !ok && len(cache) < CACHE_LIMIT && req_state.active_requests < MAX_ACTIVE_REQUESTS {
-        req_state.active_requests += 1
-        request_tile(tile)
-        // allocate so we know that this tile is busy
-        tile_data := new(Tile_Data)
-        cache[tile] = tile_data
-    } 
+    // limit requests for free osm tiles a bit more
+    max_requests: i32 = req_state.tile_layer.style == .Osm ? MAX_ACTIVE_REQUESTS / 2 : MAX_ACTIVE_REQUESTS
 
+    // request the tile
+    if !ok && len(cache) < CACHE_LIMIT && req_state.active_requests < max_requests {
+        new_tile(cache, tile)
+    } 
 
     // Fallback
 
@@ -178,26 +176,24 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
         y := tile.y * 2
         z := tile.zoom + 1
 
-        all_found := true
+        // make sure we have all 4
+        smaller_tiles: [4]^Tile_Data
+        found := 0
         outer: for i in 0..<2 {
             for j in 0..<2 {
                 t := Tile{x + i32(j), y + i32(i), z} 
                 item, ok := cache[t]
                 if !ok {
-                    all_found = false
                     break outer
+                } else {
+                    smaller_tiles[found] = item
+                    found += 1
                 }
             }
         }
-        if all_found {
-            tiles[count^] = cache[{x, y, z}]
-            count^ += 1
-            tiles[count^] = cache[{x + 1, y, z}]
-            count^ += 1
-            tiles[count^] = cache[{x, y + 1, z}]
-            count^ += 1
-            tiles[count^] = cache[{x + 1, y + 1, z}]
-            count^ += 1
+        if found == 4 {
+            copy(tiles[count^:], smaller_tiles[:])
+            count^ += 4
             return
         }
 
