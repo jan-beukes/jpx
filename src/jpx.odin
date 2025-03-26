@@ -11,12 +11,14 @@ import "core:time"
 import "core:log"
 import "core:math"
 import "core:math/linalg"
+
 import rl "vendor:raylib"
+import trk "gps_track"
 
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
-FPS :: 60
+FPS :: 1000
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
@@ -59,8 +61,10 @@ State :: struct {
     map_screen: Map_Screen,
     cache: Tile_Cache,
     last_eviction: f64,
-    is_track_open: bool,
     cache_to_disk: bool,
+
+    track: trk.Gps_Track,
+    is_track_open: bool,
 }
 
 // global state
@@ -83,7 +87,7 @@ draw_ui :: proc() {
         }
         rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
 
-        //rl.DrawFPS(10, window_height - 20)
+        rl.DrawFPS(10, window_height - 20)
 
         padding := overlay.y * 0.05
         font_size: f32 = WINDOW_HEIGHT / 40.0
@@ -106,6 +110,11 @@ draw_ui :: proc() {
         cursor.y += font_size + padding
         text := rl.TextFormat("Map Style: %s", req_state.tile_layer.name)
         draw_text(text, cursor, font_size, rl.ORANGE)
+
+        //if rl.GuiButton({f32(window_width) - 80, 0, 80, 30}, "Clear cache") {
+        //    os.remove_all(CACHE_DIR)
+        //    os.mkdir(CACHE_DIR)
+        //}
     }
 
 }
@@ -197,15 +206,17 @@ handle_input :: proc() {
     // Panning
     dt: f32 = (1.0 / FPS)
     if rl.IsMouseButtonDown(.LEFT) {
-        rl.SetMouseCursor(.RESIZE_ALL)
-        move_state.mouse_held = true
+        if !move_state.mouse_held {
+            rl.SetMouseCursor(.RESIZE_ALL)
+            move_state.mouse_held = true
+        }
 
         move_state.velocity = {0.0, 0.0}
         delta := rl.GetMouseDelta() / state.map_screen.scale
         state.map_screen.center -= {f64(delta.x), f64(delta.y)}
     } else if rl.IsMouseButtonReleased(.LEFT) {
-        rl.SetMouseCursor(.DEFAULT)
         if move_state.mouse_held {
+            rl.SetMouseCursor(.DEFAULT)
             move_state.mouse_held = false
             delta := rl.GetMouseDelta() / state.map_screen.scale
             move_state.velocity = - (delta / dt)
@@ -324,8 +335,19 @@ main :: proc() {
 
     argv := os.args
     flags := parse_flags(argv)
+    log.debug(flags)
+
+    // load track if input file was provided
     if flags.input_file == "" {
         state.is_track_open = false
+    } else {
+        ok: bool
+        state.track, ok = trk.load_from_file(flags.input_file)
+        if ok {
+            state.is_track_open = true
+        } else {
+            state.is_track_open = false
+        }
     }
 
     // cache dir on desktop
@@ -340,7 +362,6 @@ main :: proc() {
 
     api_key := strings.clone_to_cstring(flags.api_key)
     init_tile_fetching(flags.layer_style, api_key)
-    log.debug(flags)
 
     // Init
     rl.SetTraceLogLevel(.ERROR)

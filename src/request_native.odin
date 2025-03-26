@@ -228,7 +228,6 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 }
 
 request_tile :: proc(tile: Tile) {
-    // allocate a chunk
 
     if state.cache_to_disk {
         tile_layer := req_state.tile_layer
@@ -250,6 +249,7 @@ request_tile :: proc(tile: Tile) {
         }
     }
 
+    // allocate a chunk for writing
     chunk := new(Tile_Chunk)
     chunk.tile = tile
 
