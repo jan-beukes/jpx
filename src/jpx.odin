@@ -8,6 +8,7 @@ import "core:strconv"
 import "core:strings"
 import "core:flags"
 import "core:time"
+import "core:time/datetime"
 import "core:log"
 import "core:math"
 import "core:math/linalg"
@@ -18,7 +19,7 @@ import trk "gps_track"
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
-FPS :: 1000
+FPS :: 60
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
@@ -29,7 +30,7 @@ MOVE_FRICTION :: 2400
 MAX_SPEED :: 1800
 
 DARKGRAY :: rl.Color{100, 100, 100, 255}
-FADED_BLACK :: rl.Color{0, 0, 0, 100}
+FADED_BLACK :: rl.Color{0, 0, 0, 200}
 
 TEST_LOC :: Coord{18.8843, -33.9467}
 
@@ -76,46 +77,95 @@ draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
 }
 
-draw_ui :: proc() {
+debug_ui :: proc() {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
 
-    // Debug UI
-    when ODIN_DEBUG {
-        overlay := rl.Vector2 {
-            f32(WINDOW_HEIGHT) * 0.35,
-            f32(WINDOW_HEIGHT) * 0.20,
-        }
-        rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
-
-        rl.DrawFPS(10, window_height - 20)
-
-        padding := overlay.y * 0.05
-        font_size: f32 = WINDOW_HEIGHT / 40.0
-
-        cursor: rl.Vector2
-        draw_text(rl.TextFormat("Cache: %d tiles", len(state.cache)), cursor, font_size, rl.ORANGE)
-
-        cursor.y += font_size + padding
-        draw_text(rl.TextFormat("Requests: %d", req_state.active_requests), cursor, font_size, rl.ORANGE)
-
-        cursor.y += font_size + padding
-        draw_text(rl.TextFormat("Zoom: %d | %.1fx", state.map_screen.zoom, state.map_screen.scale), cursor, font_size, rl.ORANGE)
-
-        mouse_coord := mercator_to_coord(screen_to_map(state.map_screen, rl.GetMousePosition()),
-            state.map_screen.zoom)
-        cursor.y += font_size + padding
-        draw_text(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
-            cursor, font_size, rl.ORANGE)
-
-        cursor.y += font_size + padding
-        text := rl.TextFormat("Map Style: %s", req_state.tile_layer.name)
-        draw_text(text, cursor, font_size, rl.ORANGE)
-
-        //if rl.GuiButton({f32(window_width) - 80, 0, 80, 30}, "Clear cache") {
-        //    os.remove_all(CACHE_DIR)
-        //    os.mkdir(CACHE_DIR)
-        //}
+    overlay := rl.Vector2 {
+        f32(WINDOW_HEIGHT) * 0.40,
+        f32(WINDOW_HEIGHT),
     }
+    rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
+
+    padding := overlay.y * 0.02
+    font_size: f32 = WINDOW_HEIGHT / 40.0
+
+    cursor: rl.Vector2
+    draw_text(rl.TextFormat("Cache: %d tiles", len(state.cache)), cursor, font_size, rl.ORANGE)
+
+    cursor.y += font_size + padding
+    draw_text(rl.TextFormat("Requests: %d", req_state.active_requests), cursor, font_size, rl.ORANGE)
+
+    cursor.y += font_size + padding
+    draw_text(rl.TextFormat("Zoom: %d | %.1fx", state.map_screen.zoom, state.map_screen.scale), cursor, font_size, rl.ORANGE)
+
+    mouse_coord := mercator_to_coord(screen_to_map(state.map_screen, rl.GetMousePosition()),
+        state.map_screen.zoom)
+    cursor.y += font_size + padding
+    draw_text(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
+        cursor, font_size, rl.ORANGE)
+
+    cursor.y += font_size + padding
+    text := rl.TextFormat("Map Style: %s", req_state.tile_layer.name)
+    draw_text(text, cursor, font_size, rl.ORANGE)
+
+    if state.is_track_open {
+        cursor.y += font_size + 2 * padding
+        text := rl.TextFormat("TRACK:")
+        draw_text(text, cursor, font_size, rl.PURPLE)
+
+        cursor.y += font_size + padding
+        text = rl.TextFormat("%s | %s", state.track.name, state.track.metadata.text)
+        draw_text(text, cursor, font_size, rl.PURPLE)
+
+        date, ok := state.track.metadata.date_time.(datetime.DateTime)
+        if ok {
+            cursor.y += font_size + padding
+            text = rl.TextFormat("%d-%d-%d %d:%d:%d", date.day, date.month, date.year, date.hour,
+                date.minute, date.second)
+            draw_text(text, cursor, font_size, rl.PURPLE)
+        }
+
+        cursor.y += font_size + padding
+        text = rl.TextFormat("Distance: %.1fkm", state.track.total_distance / 1000.0)
+        draw_text(text, cursor, font_size, rl.PURPLE)
+
+        cursor.y += font_size + padding
+        text = rl.TextFormat("ele gain: %d", state.track.elevation_gain)
+        draw_text(text, cursor, font_size, rl.PURPLE)
+
+        cursor.y += font_size + padding
+        text = rl.TextFormat("max ele: %d", state.track.max_elevation)
+        draw_text(text, cursor, font_size, rl.PURPLE)
+
+        if state.track.avg_hr > 0 {
+            cursor.y += font_size + padding
+            text = rl.TextFormat("avg hr: %d", state.track.avg_hr)
+            draw_text(text, cursor, font_size, rl.PURPLE)
+        }
+
+        cursor.y += font_size + padding
+        if state.track.type == .Running {
+            text = rl.TextFormat("avg speed: %d", state.track.avg_speed)
+        } else {
+            kph := (state.track.avg_speed * 3600) / 1000.0
+            text = rl.TextFormat("avg speed: %.1fkph", kph)
+        }
+        draw_text(text, cursor, font_size, rl.PURPLE)
+    }
+
+    //// Draw elevation
+    //MAX :: 400
+    //max_height := window_height / 2
+    //count := 500
+    //length := len(state.track.points)
+    //w := f32(window_width) / f32(count)
+    //step := length / count
+    //for i in 0..<count {
+    //    point := state.track.points[i * step]
+    //    x := f32(i) * w
+    //    height := f32(max_height) * f32(point.elevation) / 400.0
+    //    rl.DrawRectangleRec({x, f32(window_height) - height, w, height}, rl.GREEN)
+    //}
 
 }
 
@@ -287,7 +337,7 @@ update :: proc() {
         //rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
     }
 
-    draw_ui()
+    when ODIN_DEBUG do debug_ui()
     rl.EndDrawing()
 
     free_all(context.temp_allocator)
