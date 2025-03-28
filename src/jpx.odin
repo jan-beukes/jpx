@@ -14,16 +14,17 @@ import "core:math"
 import "core:math/linalg"
 
 import rl "vendor:raylib"
-import trk "gps_track"
+import rlgl "vendor:raylib/rlgl"
 
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
-FPS :: 60
+FPS :: 1000
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
 
+// Movement
 ZOOM_STEP :: 0.3
 ZOOM_FRAMES :: 5
 MOVE_FRICTION :: 2400
@@ -33,6 +34,10 @@ DARKGRAY :: rl.Color{100, 100, 100, 255}
 FADED_BLACK :: rl.Color{0, 0, 0, 200}
 
 TEST_LOC :: Coord{18.8843, -33.9467}
+
+// Track
+TRACK_LINE_THICK :: 4
+END_POINT_RADIUS :: 6.0
 
 USAGE :: 
 `
@@ -64,8 +69,20 @@ State :: struct {
     last_eviction: f64,
     cache_to_disk: bool,
 
-    track: trk.Gps_Track,
     is_track_open: bool,
+    track: Gps_Track,
+    draw_track: Draw_Track,
+}
+
+// The draw state of the track
+// coords and points are allocated on track loading
+Draw_Track :: struct {
+    coords: []Mercator_Coord, // the coordinates are computed from track points
+                              // and must be scaled when zoom changes 
+
+    points: []rl.Vector2, // the points that gets passed to DrawLineStrip
+    zoom: i32,
+    color: rl.Color,
 }
 
 // global state
@@ -77,12 +94,43 @@ draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
 }
 
+draw_track :: proc() {
+
+    // if zoom change mercator coords need to be scaled
+    if state.draw_track.zoom != state.map_screen.zoom {
+        for &coord in state.draw_track.coords {
+            coord = scale_mercator(coord, state.draw_track.zoom, state.map_screen.zoom)
+        }
+        state.draw_track.zoom = state.map_screen.zoom
+    }
+
+    length := len(state.draw_track.points)
+    // set points on screen
+    for i := 0; i < len(state.draw_track.points); i += 1 {
+        state.draw_track.points[i] = map_to_screen(state.map_screen, state.draw_track.coords[i])
+    }
+
+    // set the line thickness for the track and draw the render batch
+    // we don't want this thickness for the endpoints or UI
+    rlgl.SetLineWidth(TRACK_LINE_THICK)
+    rl.DrawLineStrip(raw_data(state.draw_track.points), i32(len(state.draw_track.points)),
+        state.draw_track.color)
+    rlgl.DrawRenderBatchActive()
+    rlgl.SetLineWidth(1)
+
+    // Draw the start and end points
+    rl.DrawCircleV(state.draw_track.points[0], END_POINT_RADIUS, rl.GREEN)
+    rl.DrawCircleLinesV(state.draw_track.points[0], END_POINT_RADIUS, rl.BLACK)
+    rl.DrawCircleV(state.draw_track.points[length - 1], END_POINT_RADIUS, rl.RED)
+    rl.DrawCircleLinesV(state.draw_track.points[length - 1], END_POINT_RADIUS, rl.BLACK)
+}
+
 debug_ui :: proc() {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
 
     overlay := rl.Vector2 {
         f32(WINDOW_HEIGHT) * 0.40,
-        f32(WINDOW_HEIGHT),
+        f32(WINDOW_HEIGHT) * 0.5,
     }
     rl.DrawRectangleV({0, 0}, overlay, FADED_BLACK)
 
@@ -117,6 +165,7 @@ debug_ui :: proc() {
         text = rl.TextFormat("%s | %s", state.track.name, state.track.metadata.text)
         draw_text(text, cursor, font_size, rl.PURPLE)
 
+        // some files dont have any time info
         date, ok := state.track.metadata.date_time.(datetime.DateTime)
         if ok {
             cursor.y += font_size + padding
@@ -152,20 +201,6 @@ debug_ui :: proc() {
         }
         draw_text(text, cursor, font_size, rl.PURPLE)
     }
-
-    //// Draw elevation
-    //MAX :: 400
-    //max_height := window_height / 2
-    //count := 500
-    //length := len(state.track.points)
-    //w := f32(window_width) / f32(count)
-    //step := length / count
-    //for i in 0..<count {
-    //    point := state.track.points[i * step]
-    //    x := f32(i) * w
-    //    height := f32(max_height) * f32(point.elevation) / 400.0
-    //    rl.DrawRectangleRec({x, f32(window_height) - height, w, height}, rl.GREEN)
-    //}
 
 }
 
@@ -276,6 +311,7 @@ handle_input :: proc() {
         }
     }
     // update from panning velocity
+    // this is not supposed to do this while im writting comments
     speed := linalg.length(move_state.velocity)
     if speed > 0 {
         dr := move_state.velocity * dt
@@ -318,6 +354,8 @@ update :: proc() {
         state.last_eviction = rl.GetTime()
     }
 
+    rl.SetWindowTitle(rl.TextFormat("jpx | %d", rl.GetFPS()))
+
     handle_input()
 
     // get tiles
@@ -335,6 +373,10 @@ update :: proc() {
         tile_rect := get_tile_rect(state.map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
         //rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
+    }
+
+    if state.is_track_open {
+        draw_track()
     }
 
     when ODIN_DEBUG do debug_ui()
@@ -387,20 +429,30 @@ main :: proc() {
     flags := parse_flags(argv)
     log.debug(flags)
 
+    /*****************
+    * Initialization
+    ******************/
+
     // load track if input file was provided
     if flags.input_file == "" {
         state.is_track_open = false
     } else {
         ok: bool
-        state.track, ok = trk.load_from_file(flags.input_file)
+        state.track, ok = track_load_from_file(flags.input_file)
         if ok {
+            // allocate for the draw track
+            // the setup needs to come after we setup the map screen
             state.is_track_open = true
+            state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
+            state.draw_track.points = make([]rl.Vector2, len(state.track.points))
+            state.draw_track.color = rl.ORANGE
+
         } else {
             state.is_track_open = false
         }
     }
 
-    // cache dir on desktop
+    // make cache dir on desktop
     when ODIN_OS != .JS {
         dir := filepath.dir(argv[0])
         os.change_directory(dir)
@@ -409,28 +461,39 @@ main :: proc() {
     } else {
         state.cache_to_disk = false
     }
-
+    // initialize tile fetching
     api_key := strings.clone_to_cstring(flags.api_key)
     init_tile_fetching(flags.layer_style, api_key)
 
-    // Init
+    // Raylib setup
     rl.SetTraceLogLevel(.ERROR)
     rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
+    defer rl.CloseWindow()
     rl.SetTargetFPS(FPS) // idk
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
-    defer rl.CloseWindow()
+
+    rlgl.SetLineWidth(TRACK_LINE_THICK)
+    rlgl.EnableSmoothLines()
 
     // resource
     g_font = rl.LoadFontEx("res/font.ttf", 96, nil, 0)
     rl.SetTextureFilter(g_font.texture, .BILINEAR)
 
+    // initialize the map screen and draw state
     state.map_screen = Map_Screen {
         center = coord_to_mercator(TEST_LOC, 13),
         width = WINDOW_WIDTH,
         height = WINDOW_HEIGHT,
         zoom = 13,
         scale = 1.0,
+    }
+    if state.is_track_open {
+        state.draw_track.zoom = state.map_screen.zoom
+        for i := 0; i < len(state.track.points); i += 1 {
+            state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
+                state.draw_track.zoom)
+        }
     }
 
     // cache a few large tiles

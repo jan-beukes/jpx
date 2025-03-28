@@ -22,6 +22,18 @@ Tile :: struct {
     zoom: i32,
 }
 
+R :: 6371 * 1000 // meters
+// The distance between 2 lon/lat coordinates in meters
+// https://en.wikipedia.org/wiki/Haversine_formula
+coord_distance :: proc(c1, c2: Coord) -> f32 {
+
+    sin1 := math.sin((c2.y - c1.y) / 2.0) * math.sin((c2.y - c1.y) / 2.0)
+    sin2 := math.sin((c2.x - c1.x) / 2.0) * math.sin((c2.x - c1.x) / 2.0)
+    sqrt := math.sqrt(sin1 + math.cos(c1.y) * math.cos(c2.y) * sin2)
+    d := 2*R * math.asin(sqrt)
+    return f32(d)
+}
+
 // from lon/lat to mercator coordinate
 coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
     // project coord to web mercator
@@ -34,7 +46,7 @@ coord_to_mercator :: proc(coord: Coord, zoom: i32) -> Mercator_Coord {
 
     // zoom and scale with tile size
     n := 1 << u32(zoom)
-    tile_size := req_state.tile_layer.tile_size
+    tile_size := req_state.tile_layer.tile_size // depends on the tile size from req state
     map_size := f64(n * int(tile_size))
     x_pixel := x * map_size
     y_pixel := y * map_size
@@ -135,6 +147,10 @@ get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Recta
         pos = map_to_screen(map_screen, tile_data.coord)
     }
     return {pos.x, pos.y, size, size}
+}
+
+get_map_center_from_track :: proc(track_points: [dynamic]Track_Point) -> Coord {
+    return {}
 }
 
 // get the tile from cache and add it to the array
