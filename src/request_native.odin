@@ -45,13 +45,14 @@ Thread_Context :: struct {
     save_queue: queue.Queue(Tile_Save),
 }
 
-@(private="file")
-request_context: runtime.Context
-@(private="file")
-thread_ctx: Thread_Context
+// platform request state
+@(private="file") request_context: runtime.Context
+@(private="file") thread_ctx: Thread_Context
+@(private="file") is_offline: bool
 
-init_request_platform :: proc() {
+init_request_platform :: proc(offline: bool) {
     request_context = context
+    is_offline = offline
     req_state.m_handle = curl.multi_init()
     thread.run(io_thread_proc)
 }
@@ -129,22 +130,20 @@ poll_requests :: proc(cache: ^Tile_Cache) {
         for thread_ctx.loaded_tiles.len > 0 {
             loaded := queue.pop_front(&thread_ctx.loaded_tiles)
             item, ok := cache[loaded.tile]
-            if loaded.style == req_state.tile_layer.style {
-                if ok {
-                    texture := rl.LoadTextureFromImage(loaded.img)
-                    rl.SetTextureFilter(texture, .BILINEAR)
-                    rl.SetTextureWrap(texture, .MIRROR_REPEAT)
-                    item^ = {
-                        ready = true,
-                        coord = tile_to_mercator(loaded.tile),
-                        zoom = loaded.tile.zoom,
-                        texture = texture,
-                        style = loaded.style,
-                        last_accessed = rl.GetTime(),
-                    }
-                } else {
-                    delete_key(cache, loaded.tile)
+            if loaded.style == req_state.tile_layer.style && ok {
+                texture := rl.LoadTextureFromImage(loaded.img)
+                rl.SetTextureFilter(texture, .BILINEAR)
+                rl.SetTextureWrap(texture, .MIRROR_REPEAT)
+                item^ = {
+                    ready = true,
+                    coord = tile_to_mercator(loaded.tile),
+                    zoom = loaded.tile.zoom,
+                    texture = texture,
+                    style = loaded.style,
+                    last_accessed = rl.GetTime(),
                 }
+            } else {
+                delete_key(cache, loaded.tile)
             }
             rl.UnloadImage(loaded.img)
         }
@@ -166,15 +165,12 @@ poll_requests :: proc(cache: ^Tile_Cache) {
             curl.easy_getinfo(handle, curl.INFO_PRIVATE, &chunk)
 
             // check for error on fetch
-            result_ok: if msg.data.result == curl.E_OK {
+            result_ok: if msg.data.result == .E_OK {
 
                 tile := chunk.tile
                 item := cache[tile]
                 
                 style := req_state.tile_layer.style
-                if item.style != req_state.tile_layer.style {
-                    break result_ok
-                }
 
                 ft: cstring = ".png" 
                 if style == .Mapbox_Satelite || style == .Mapbox_Outdoors {
@@ -184,7 +180,8 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 img := rl.LoadImageFromMemory(ft, raw_data(chunk.data), i32(len(chunk.data)))
                 delete(chunk.data)
 
-                if img.data != nil {
+                // we also need to make sure that the tile's style is the same as what we are using
+                if img.data != nil && item.style == style {
                     texture := rl.LoadTextureFromImage(img)
                     rl.SetTextureFilter(texture, .BILINEAR)
                     // Mirrored wrap fixes bilinear filter sampling on edges
@@ -212,10 +209,14 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                     }
                 } else {
                     delete_key(cache, tile)
-                    log.error("Could not load tile")
+                    if req_state.tile_layer.style == .Osm {
+                        log.error("Could not load tile")
+                    } else {
+                        log.error("Could not load tile, maybe invalid key?")
+                    }
                 }
             } else {
-                log.error("Request failed")
+                log.error("Request failed", msg.data.result)
             }
 
             // cleanup
@@ -227,9 +228,10 @@ poll_requests :: proc(cache: ^Tile_Cache) {
     }
 }
 
-request_tile :: proc(tile: Tile) {
+request_tile :: proc(tile: Tile) -> bool {
 
-    if state.cache_to_disk {
+    // since offline can only get tiles from cache cache_to_disk option is ignored
+    if state.cache_to_disk || is_offline {
         tile_layer := req_state.tile_layer
         ft: cstring = ".png" 
         if tile_layer.style == .Mapbox_Satelite || tile_layer.style == .Mapbox_Outdoors {
@@ -245,7 +247,10 @@ request_tile :: proc(tile: Tile) {
                 tile = tile,
             })
             sync.mutex_unlock(&thread_ctx.mutex)
-            return
+            return true
+        } else if is_offline {
+            // file is not cached on disk so we just don't try to load it offline
+            return false
         }
     }
 
@@ -262,4 +267,5 @@ request_tile :: proc(tile: Tile) {
     curl.easy_setopt(handle, curl.OPT_PRIVATE, chunk)
 
     curl.multi_add_handle(req_state.m_handle, handle)
+    return true
 }

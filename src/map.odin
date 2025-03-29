@@ -22,6 +22,8 @@ Tile :: struct {
     zoom: i32,
 }
 
+//---Map transformation and helper functions---
+
 R :: 6371 * 1000 // meters
 // The distance between 2 lon/lat coordinates in meters
 // https://en.wikipedia.org/wiki/Haversine_formula
@@ -176,6 +178,8 @@ get_map_pos_from_track :: proc(track_points: [dynamic]Track_Point) -> (Coord, i3
 
     return coord, zoom
 }
+
+//---Map tile requesting function---
 
 // get the tile from cache and add it to the array
 // we need to do this since higher res fallback will return 4 tiles
