@@ -2,15 +2,15 @@ package jpx
 
 import "core:mem"
 import "core:fmt"
+import "core:math"
 import "core:log"
 import "base:runtime"
 
 import rl "vendor:raylib"
 
 MAX_ACTIVE_REQUESTS :: 32
-CACHE_LIMIT :: 1024
-EVICTION_SIZE :: 256
-CACHE_TIMEOUT :: 2.0
+CACHE_LIMIT :: 512
+CACHE_TIMEOUT :: 1.0
 
 Tile_Data :: struct {
     ready: bool,
@@ -54,17 +54,29 @@ Tile_Layer :: struct {
     clear_color: rl.Color,
 }
 
-// global
-req_state: struct {
+Req_State :: struct {
+    ready: bool,
     m_handle: rawptr, // the global multi handle for libcurl
     active_requests: i32,
     tile_layer: Tile_Layer,
 }
+// global
+req_state: Req_State
 
-init_tile_fetching :: proc(style: Layer_Style, api_key: cstring) {
-    init_request_platform()
+init_tile_fetching :: proc(style: Layer_Style, api_key: cstring, offline := false) {
+    when ODIN_OS == .JS {
+        init_request_platform()
+    } else {
+        init_request_platform(offline)
+    }
+    req_state.ready = true
     req_state.active_requests = 0
     req_state.tile_layer = get_tile_layer(style, api_key)
+}
+
+deinit_tile_fetching :: proc() {
+    deinit_request_platform()
+    req_state.active_requests = 0
 }
 
 // switch the active layer to style
@@ -116,11 +128,6 @@ get_tile_layer :: proc(style: Layer_Style, api_key := cstring("")) -> Tile_Layer
     }
 }
 
-deinit_tile_fetching :: proc() {
-    deinit_request_platform()
-    req_state.active_requests = 0
-}
-
 get_tile_url :: proc(tile: Tile) -> cstring {
     if req_state.tile_layer.style == .Osm {
         return rl.TextFormat(req_state.tile_layer.url, tile.zoom, tile.x, tile.y)
@@ -136,7 +143,15 @@ new_tile :: proc(cache: ^Tile_Cache, tile: Tile) {
     tile_data.style = req_state.tile_layer.style
     cache[tile] = tile_data
 
-    request_tile(tile)
+    when ODIN_OS == .JS {
+        request_tile(tile)
+    } else {
+        // tile loading was aborted (offline)
+        if !request_tile(tile) {
+            delete_key(cache, tile)
+        }
+    }
+
     req_state.active_requests += 1
 }
 
