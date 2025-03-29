@@ -26,6 +26,15 @@ Activity_Type :: enum {
     Cycling,
 }
 
+ExtData :: enum {
+    Speed,
+    Distance,
+    Heartrate,
+    Cadence,
+}
+
+Extensions :: bit_set[ExtData]
+
 // Not all the values in this struct are guaranteed
 // to be loaded as track points have variable data
 Track_Point :: struct {
@@ -60,9 +69,9 @@ Gps_Track :: struct {
     max_speed: f32,
 
     // Elevation
-    elevation_gain: i32,
-    max_elevation: i32,
-    min_elevation: i32,
+    elevation_gain: f32,
+    max_elevation: f32,
+    min_elevation: f32,
 
     allocator: runtime.Allocator
 }
@@ -97,6 +106,7 @@ track_load_from_gpx :: proc(file: string) -> (track: Gps_Track, ok: bool) {
     ok = true
     doc, err := xml.load_from_file(file)
     if err != nil {
+        log.errorf("Could not load %s", file)
         return {}, false
     }
     defer xml.destroy(doc)
@@ -115,7 +125,7 @@ track_load_from_gpx :: proc(file: string) -> (track: Gps_Track, ok: bool) {
             id := value.(xml.Element_ID)
             ident := doc.elements[id].ident
             if strings.compare(ident, "metadata") == 0 {
-                track.metadata = _get_metadata(doc.elements, id)
+                track.metadata = track_get_metadata(doc.elements, id)
             } else if strings.compare(ident, "trk") == 0 {
                 track_load_data(&track, doc.elements, id)
             } else {
@@ -173,11 +183,11 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
 
             total_hr: u32
             total_speed: f32
-            max_ele, min_ele: i32 = -100, max(i32)
+            max_ele, min_ele: f32 = min(f32), max(f32)
 
             point_count := len(elem.value)
             prev_point: Track_Point
-            for val in elem.value {
+            for val, i in elem.value {
                 id := val.(xml.Element_ID)
 
                 // load the point
@@ -189,14 +199,10 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
                     tz := timezone.region_load("local") or_continue
                     track.metadata.date_time = timezone.datetime_to_tz(track.metadata.date_time.(DateTime), tz) or_continue
                 }
-                // convert point timezone not sure if this will ever be needed
-                if track_point.time != nil {
-                    track_point.time = timezone.datetime_to_tz(track_point.time.(DateTime),
-                        track.metadata.date_time.(DateTime).tz) or_continue
-                }
 
-                if i32(track_point.elevation) > max_ele do max_ele = i32(track_point.elevation)
-                if i32(track_point.elevation) < min_ele do min_ele = i32(track_point.elevation)
+                // accumulate
+                if track_point.elevation > max_ele do max_ele = track_point.elevation
+                if track_point.elevation < min_ele do min_ele = track_point.elevation
                 total_speed += track_point.speed
                 total_hr += track_point.hr
 
@@ -204,10 +210,10 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
                 prev_point = track_point
             }
 
-            if min_ele < max(i32) {
+            if min_ele < max(f32) {
                 track.min_elevation = min_ele
             }
-            if max_ele > -100 {
+            if max_ele > min(f32) {
                 track.max_elevation = max_ele
             }
 
@@ -228,19 +234,18 @@ track_load_next_point :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element,
     point_id: xml.Element_ID, prev_point: Track_Point) -> (track_point: Track_Point) {
 
     point_elem := elements[point_id]
+    ok: bool
 
     // parse the lat / lon for this point
     lat_attrib := point_elem.attribs[0]
     lon_attrib := point_elem.attribs[1]
-
-    ok: bool
     track_point.coord.x, ok = strconv.parse_f64(lon_attrib.val)
     if !ok do return
     track_point.coord.y, ok = strconv.parse_f64(lat_attrib.val)
     if !ok do return
 
 
-    found_speed, found_distance: bool
+    loaded_extensions: Extensions
     prev_point := prev_point
     // parse all the extra data from point elem
     for val in point_elem.value {
@@ -256,45 +261,88 @@ track_load_next_point :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element,
             value := elem.value[0].(string)
             track_point.time = parse_date_time(value) or_continue
         } else if strings.compare(ident, "extensions") == 0 {
-            for val in elem.value {
-                id := val.(xml.Element_ID)
-                ext_elem := elements[id]
-                ident := ext_elem.ident
-                ident = strings.trim_prefix(ident, "gpxdata:")
-
-                if strings.compare(ident, "hr") == 0 {
-                    val := ext_elem.value[0].(string)
-                    track_point.hr = auto_cast strconv.parse_uint(val) or_continue
-                } else if strings.compare(ident, "distance") == 0 {
-                    val := ext_elem.value[0].(string)
-                    track_point.distance = auto_cast strconv.parse_f32(val) or_continue
-                } else if strings.compare(ident, "speed") == 0 {
-                    val := ext_elem.value[0].(string)
-                    track_point.speed = auto_cast strconv.parse_f32(val) or_continue
-                }
-            }
+            loaded_extensions = track_load_extensions(&track_point, elements, elem)
         }
     }
 
     // NOTE:
-    // we don't always get all the data so sometimes values need to be calculated
+    // we don't always get all the data so some values need to be calculated
     // I'm not sure of all best ways to calculate these values. 
     // there are cases such as no time data where it not possible to reliably calculate speed.
-    // points have a 1 second difference about 98% of the time so an estimate of speed could be done.
-
 
     if prev_point == {} do prev_point = track_point
+
     diff := track_point.elevation - prev_point.elevation
     // The elevation gain seems larger than
     // what other software calculates maybe some form of algorithm to minimize inacuracies?
     if diff > 0 {
-        track.elevation_gain += i32(diff)
+        track.elevation_gain += diff
+    }
+
+    // calculate the distance and speed at this point
+    if .Distance not_in loaded_extensions && track_point.time != nil {
+        // distance using haversine
+        flat_dist := coord_distance(prev_point.coord, track_point.coord)
+        dist := math.sqrt(diff * diff + flat_dist * flat_dist) // account for elevation diff
+        track_point.distance = prev_point.distance + dist
+
+        start, _ := time.datetime_to_time(prev_point.time.(DateTime))
+        end, _ := time.datetime_to_time(track_point.time.(DateTime))
+        time_diff := time.diff(start, end)
+        assert(time_diff >= 0)
+
+        secs := time.duration_seconds(time_diff)
+        if secs > 0.0 {
+            track_point.speed = dist / f32(secs)
+        }
     }
 
     return
 }
 
-_get_metadata :: proc(elements: [dynamic]xml.Element, id: xml.Element_ID) -> Metadata {
+track_load_extensions :: proc(track_point: ^Track_Point, 
+    elements: [dynamic]xml.Element, elem: xml.Element) -> Extensions {
+
+    loaded_extensions: Extensions
+    for val in elem.value {
+        id := val.(xml.Element_ID)
+        ext_elem := elements[id]
+        ident := ext_elem.ident
+
+        // sometimes instead of extensions being under gpxdata:
+        // they are values of a single gpxtpx element
+        if strings.compare(ident, "gpxtpx:TrackPointExtension") == 0{
+            for tpx_val in ext_elem.value {
+                id := tpx_val.(xml.Element_ID)
+                tpx_elem := elements[id]
+                ident := tpx_elem.ident
+                if strings.compare(ident, "gpxtpx:hr") == 0 {
+                    val := tpx_elem.value[0].(string)
+                    track_point.hr = auto_cast strconv.parse_uint(val) or_continue
+                    loaded_extensions += { .Heartrate }
+                } else if strings.compare(ident, "gpxtpx:cad") == 0 {
+                    // cadence
+                }
+            }
+        } else if strings.compare(ident, "gpxdata:hr") == 0 {
+            val := ext_elem.value[0].(string)
+            track_point.hr = auto_cast strconv.parse_uint(val) or_continue
+            loaded_extensions += { .Heartrate }
+        } else if strings.compare(ident, "gpxdata:distance") == 0 {
+            val := ext_elem.value[0].(string)
+            track_point.distance = auto_cast strconv.parse_f32(val) or_continue
+            loaded_extensions += { .Distance }
+        } else if strings.compare(ident, "gpxdata:speed") == 0 {
+            val := ext_elem.value[0].(string)
+            track_point.speed = auto_cast strconv.parse_f32(val) or_continue
+            loaded_extensions += { .Speed }
+        }
+    }
+
+    return loaded_extensions
+}
+
+track_get_metadata :: proc(elements: [dynamic]xml.Element, id: xml.Element_ID) -> Metadata {
 
     metadata_elem := elements[id]
     metadata: Metadata

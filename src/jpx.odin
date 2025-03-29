@@ -19,7 +19,7 @@ import rlgl "vendor:raylib/rlgl"
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
-FPS :: 1000
+FPS :: 60
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
@@ -28,7 +28,7 @@ MIN_SCALE :: MAX_SCALE / 2.0
 ZOOM_STEP :: 0.3
 ZOOM_FRAMES :: 5
 MOVE_FRICTION :: 2400
-MAX_SPEED :: 1800
+MAX_SPEED :: 1600
 
 DARKGRAY :: rl.Color{100, 100, 100, 255}
 FADED_BLACK :: rl.Color{0, 0, 0, 200}
@@ -175,15 +175,15 @@ debug_ui :: proc() {
         }
 
         cursor.y += font_size + padding
-        text = rl.TextFormat("Distance: %.1fkm", state.track.total_distance / 1000.0)
+        text = rl.TextFormat("Distance: %.2fkm", state.track.total_distance / 1000.0)
         draw_text(text, cursor, font_size, rl.PURPLE)
 
         cursor.y += font_size + padding
-        text = rl.TextFormat("ele gain: %d", state.track.elevation_gain)
+        text = rl.TextFormat("ele gain: %.0f", state.track.elevation_gain)
         draw_text(text, cursor, font_size, rl.PURPLE)
 
         cursor.y += font_size + padding
-        text = rl.TextFormat("max ele: %d", state.track.max_elevation)
+        text = rl.TextFormat("max ele: %.0f", state.track.max_elevation)
         draw_text(text, cursor, font_size, rl.PURPLE)
 
         if state.track.avg_hr > 0 {
@@ -194,7 +194,10 @@ debug_ui :: proc() {
 
         cursor.y += font_size + padding
         if state.track.type == .Running {
-            text = rl.TextFormat("avg speed: %d", state.track.avg_speed)
+            mpk := (1.0 / state.track.avg_speed) * (1000.0 / 60.0)
+            min := i32(mpk)
+            sec := i32(60 * (mpk - math.trunc(mpk)))
+            text = rl.TextFormat("avg pace: %d:%d /km", min, sec)
         } else {
             kph := (state.track.avg_speed * 3600) / 1000.0
             text = rl.TextFormat("avg speed: %.1fkph", kph)
@@ -427,7 +430,6 @@ main :: proc() {
 
     argv := os.args
     flags := parse_flags(argv)
-    log.debug(flags)
 
     /*****************
     * Initialization
@@ -481,18 +483,27 @@ main :: proc() {
     rl.SetTextureFilter(g_font.texture, .BILINEAR)
 
     // initialize the map screen and draw state
-    state.map_screen = Map_Screen {
-        center = coord_to_mercator(TEST_LOC, 13),
-        width = WINDOW_WIDTH,
-        height = WINDOW_HEIGHT,
-        zoom = 13,
-        scale = 1.0,
-    }
     if state.is_track_open {
+        coord, zoom := get_map_pos_from_track(state.track.points)
+        state.map_screen = Map_Screen {
+            center = coord_to_mercator(coord, zoom),
+            width = WINDOW_WIDTH,
+            height = WINDOW_HEIGHT,
+            zoom = zoom,
+            scale = 1.0,
+        }
         state.draw_track.zoom = state.map_screen.zoom
         for i := 0; i < len(state.track.points); i += 1 {
             state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
                 state.draw_track.zoom)
+        }
+    } else {
+        state.map_screen = Map_Screen {
+            center = coord_to_mercator(TEST_LOC, 13),
+            width = WINDOW_WIDTH,
+            height = WINDOW_HEIGHT,
+            zoom = 13,
+            scale = 1.0,
         }
     }
 

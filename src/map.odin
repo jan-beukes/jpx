@@ -26,10 +26,11 @@ R :: 6371 * 1000 // meters
 // The distance between 2 lon/lat coordinates in meters
 // https://en.wikipedia.org/wiki/Haversine_formula
 coord_distance :: proc(c1, c2: Coord) -> f32 {
-
-    sin1 := math.sin((c2.y - c1.y) / 2.0) * math.sin((c2.y - c1.y) / 2.0)
-    sin2 := math.sin((c2.x - c1.x) / 2.0) * math.sin((c2.x - c1.x) / 2.0)
-    sqrt := math.sqrt(sin1 + math.cos(c1.y) * math.cos(c2.y) * sin2)
+    lon1, lat1 := c1.x * math.RAD_PER_DEG, c1.y * math.RAD_PER_DEG
+    lon2, lat2 := c2.x * math.RAD_PER_DEG, c2.y * math.RAD_PER_DEG
+    sin1 := math.sin((lat2 - lat1) / 2.0) * math.sin((lat2 - lat1) / 2.0)
+    sin2 := math.sin((lon2 - lon1) / 2.0) * math.sin((lon2 - lon1) / 2.0)
+    sqrt := math.sqrt(sin1 + math.cos(lat1) * math.cos(lat2) * sin2)
     d := 2*R * math.asin(sqrt)
     return f32(d)
 }
@@ -149,8 +150,31 @@ get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Recta
     return {pos.x, pos.y, size, size}
 }
 
-get_map_center_from_track :: proc(track_points: [dynamic]Track_Point) -> Coord {
-    return {}
+// find the bounding box of the track and return the center and 
+get_map_pos_from_track :: proc(track_points: [dynamic]Track_Point) -> (Coord, i32) {
+
+    min_lat, min_lon: f64 = 180.0, 180.0
+    max_lat, max_lon: f64 = -180.0, -180.0
+    for point in track_points {
+        if point.coord.x < min_lon do min_lon = point.coord.x
+        if point.coord.x > max_lon do max_lon = point.coord.x
+        if point.coord.y < min_lat do min_lat = point.coord.y
+        if point.coord.y > max_lat do max_lat = point.coord.y
+    }
+    // get the center from bounding box
+    coord := Coord{(min_lon + max_lon)/2.0, (min_lat + max_lat) / 2.0}
+
+    // use mercator coord at zoom of one to get a delta and find
+    // which zoom level would give us the correct delta
+    merc_tl := coord_to_mercator({min_lon, max_lat}, 1)
+    merc_br := coord_to_mercator({max_lon, min_lat}, 1)
+
+    scale_x := 2*WINDOW_WIDTH / (merc_br.x - merc_tl.x)
+    scale_y := 2*WINDOW_HEIGHT / (merc_br.y - merc_tl.y) // mercator is y flipped from coord
+    scale := min(scale_x, scale_y)
+    zoom := i32(math.log2(scale))
+
+    return coord, zoom
 }
 
 // get the tile from cache and add it to the array
