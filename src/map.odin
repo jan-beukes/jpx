@@ -9,7 +9,7 @@ import rl "vendor:raylib"
 import "core:fmt"
 
 MIN_ZOOM :: 2
-ZOOM_FALLBACK_LIMIT :: 5
+ZOOM_FALLBACK_LIMIT :: 8
 
 // (lon, lat) in degrees
 Coord :: [2]f64

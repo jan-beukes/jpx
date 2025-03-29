@@ -21,14 +21,14 @@ import rlgl "vendor:raylib/rlgl"
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
-FPS :: 60
+FPS :: 120
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
 
 // Movement
 ZOOM_STEP :: 0.3
-ZOOM_FRAMES :: 5
+ZOOM_FRAMES :: 10
 MOVE_FRICTION :: 2400
 MAX_SPEED :: 1600
 
@@ -123,10 +123,10 @@ draw_track :: proc() {
     rlgl.SetLineWidth(1)
 
     // Draw the start and end points
-    rl.DrawCircleV(state.draw_track.points[0], END_POINT_RADIUS, rl.GREEN)
-    rl.DrawCircleLinesV(state.draw_track.points[0], END_POINT_RADIUS, rl.BLACK)
-    rl.DrawCircleV(state.draw_track.points[length - 1], END_POINT_RADIUS, rl.RED)
-    rl.DrawCircleLinesV(state.draw_track.points[length - 1], END_POINT_RADIUS, rl.BLACK)
+    rl.DrawCircleV(state.draw_track.points[0], END_POINT_RADIUS, rl.DARKGREEN)
+    rl.DrawCircleLinesV(state.draw_track.points[0], END_POINT_RADIUS, WHITE)
+    rl.DrawCircleV(state.draw_track.points[length - 1], END_POINT_RADIUS, rl.MAROON)
+    rl.DrawCircleLinesV(state.draw_track.points[length - 1], END_POINT_RADIUS, WHITE)
 }
 
 // since we are using a type of imgui the drawing and logic of the gui are in the same place
@@ -135,7 +135,6 @@ handle_ui :: proc() {
     // we reset this so that the ui functions can set it when they are focused
     state.ui_is_focused = false 
 
-    when ODIN_DEBUG do debug_ui()
 
     //---Tile Layers dropdown---
     size: f32 = WINDOW_HEIGHT * 0.18
@@ -146,15 +145,22 @@ handle_ui :: proc() {
         "Mapbox Outdoors",
         "Satelite",
     }
-    item, selected := gui_drop_down(rect, "Map Style", items, DEFAULT_PALLETE, &state.ui_is_focused)
-    if selected {
-        switch_tile_layer(Layer_Style(item))
+    selected := int(req_state.tile_layer.style)
+    if gui_drop_down(rect, "Map Style", items, &selected, &state.ui_is_focused) {
+        switch_tile_layer(Layer_Style(selected))
     }
+
+    when ODIN_DEBUG do debug_ui(0, 0)
 }
 
 // switch the active tile layer
 // since the tile size changes for mapbox we need to recalculate center, scale and all the track points
 switch_tile_layer :: proc(style: Layer_Style) {
+
+    // TODO: Some sort of message for no api key
+    if style != .Osm && state.config.api_keys[style] == "" {
+        return
+    }
 
     clear_cache(&state.cache)
 
@@ -185,7 +191,6 @@ switch_tile_layer :: proc(style: Layer_Style) {
     }
 }
 
-
 zoom_map :: proc(step: f32, window_width, window_height: i32) {
     // This depends on tile layer
     max_zoom := req_state.tile_layer.max_zoom
@@ -207,6 +212,7 @@ zoom_map :: proc(step: f32, window_width, window_height: i32) {
         state.map_screen.scale = MIN_SCALE + diff
         state.map_screen.center *= 2
     }
+    // rescale after zoom
     state.map_screen.width = i32(f32(window_width) / state.map_screen.scale)
     state.map_screen.height = i32(f32(window_height) / state.map_screen.scale)
 }
@@ -488,8 +494,15 @@ main :: proc() {
 
     // initialize tile fetching
     api_key := strings.clone_to_cstring(flags.api_key)
-    if flags.layer_style != .Osm && api_key != "" {
-        state.config.api_keys[flags.layer_style] = api_key
+    layer_style := flags.layer_style
+    if layer_style != .Osm {
+        if api_key != "" {
+            // api key was provided
+            state.config.api_keys[layer_style] = api_key
+        } else if state.config.api_keys[layer_style] == "" {
+            // no api key provided in config or args
+            layer_style = .Osm
+        }
     }
     init_tile_fetching(flags.layer_style, 
         state.config.api_keys[flags.layer_style], flags.offline)
@@ -527,17 +540,18 @@ main :: proc() {
         }
     } else {
         state.map_screen = Map_Screen {
-            center = coord_to_mercator(TEST_LOC, 13),
+            center = coord_to_mercator({23.5, 0}, 3),
             width = WINDOW_WIDTH,
             height = WINDOW_HEIGHT,
-            zoom = 13,
+            zoom = 3,
             scale = 1.0,
         }
     }
 
     // cache a few large tiles
     tile := mercator_to_tile(state.map_screen.center, state.map_screen.zoom)
-    for _ in 0..<ZOOM_FALLBACK_LIMIT {
+    fallback := max(0, tile.zoom - ZOOM_FALLBACK_LIMIT)
+    for _ in 0..<fallback {
         tile.x /= 2
         tile.y /= 2
         tile.zoom -= 1

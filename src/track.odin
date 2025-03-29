@@ -16,9 +16,10 @@ import "core:fmt"
 
 import "core:encoding/xml"
 
-DateTime :: datetime.DateTime
 
 SUPPORTED_FORMATS :: "gpx"
+
+DateTime :: datetime.DateTime
 
 Activity_Type :: enum {
     None,
@@ -179,59 +180,51 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
             }
 
         } else if strings.compare(ident, "trkseg") == 0 {
-            //---Track Points---
 
+            //---Track Points---
             total_hr: u32
-            total_speed: f32
             max_ele, min_ele: f32 = min(f32), max(f32)
 
             point_count := len(elem.value)
-            prev_point: Track_Point
+            loaded_ext: Extensions
             for val, i in elem.value {
                 id := val.(xml.Element_ID)
 
                 // load the point
-                track_point := track_load_next_point(track, elements, id, prev_point)
+                track_point: Track_Point
+                track_point, loaded_ext = track_load_next_point(elements, id)
 
                 // set datetime in the metadata if we have times from points
                 if track.metadata.date_time == nil && track_point.time != nil {
                     track.metadata.date_time = track_point.time.(DateTime)
                     tz := timezone.region_load("local") or_continue
-                    track.metadata.date_time = timezone.datetime_to_tz(track.metadata.date_time.(DateTime), tz) or_continue
+                    track.metadata.date_time = timezone.datetime_to_tz(
+                        track.metadata.date_time.(DateTime), tz) or_continue
                 }
 
-                // accumulate
                 if track_point.elevation > max_ele do max_ele = track_point.elevation
                 if track_point.elevation < min_ele do min_ele = track_point.elevation
-                total_speed += track_point.speed
                 total_hr += track_point.hr
 
                 append(&track.points, track_point)
-                prev_point = track_point
             }
-
+            // elevation
             if min_ele < max(f32) {
                 track.min_elevation = min_ele
             }
             if max_ele > min(f32) {
                 track.max_elevation = max_ele
             }
+            track.avg_hr = u32(math.round(f32(total_hr) / f32(point_count)))
 
-            // averages
-            track.avg_speed = total_speed / f32(point_count)
-            track.avg_hr = total_hr / u32(point_count)
-
-            // get distance and duration from the last/first points
-            last := track.points[len(track.points) - 1]
-            if last.distance > 0.0 {
-                track.total_distance = last.distance
-            }
+            track_calculate_stats(track, loaded_ext)
         }
     }
 }
 
-track_load_next_point :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element,
-    point_id: xml.Element_ID, prev_point: Track_Point) -> (track_point: Track_Point) {
+track_load_next_point :: proc(
+    elements: [dynamic]xml.Element,
+    point_id: xml.Element_ID) -> (track_point: Track_Point, loaded_ext: Extensions) {
 
     point_elem := elements[point_id]
     ok: bool
@@ -244,9 +237,6 @@ track_load_next_point :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element,
     track_point.coord.y, ok = strconv.parse_f64(lat_attrib.val)
     if !ok do return
 
-
-    loaded_extensions: Extensions
-    prev_point := prev_point
     // parse all the extra data from point elem
     for val in point_elem.value {
 
@@ -261,43 +251,85 @@ track_load_next_point :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element,
             value := elem.value[0].(string)
             track_point.time = parse_date_time(value) or_continue
         } else if strings.compare(ident, "extensions") == 0 {
-            loaded_extensions = track_load_extensions(&track_point, elements, elem)
-        }
-    }
-
-    // NOTE:
-    // we don't always get all the data so some values need to be calculated
-    // I'm not sure of all best ways to calculate these values. 
-    // there are cases such as no time data where it not possible to reliably calculate speed.
-
-    if prev_point == {} do prev_point = track_point
-
-    diff := track_point.elevation - prev_point.elevation
-    // The elevation gain seems larger than
-    // what other software calculates maybe some form of algorithm to minimize inacuracies?
-    if diff > 0 {
-        track.elevation_gain += diff
-    }
-
-    // calculate the distance and speed at this point
-    if .Distance not_in loaded_extensions && track_point.time != nil {
-        // distance using haversine
-        flat_dist := coord_distance(prev_point.coord, track_point.coord)
-        dist := math.sqrt(diff * diff + flat_dist * flat_dist) // account for elevation diff
-        track_point.distance = prev_point.distance + dist
-
-        start, _ := time.datetime_to_time(prev_point.time.(DateTime))
-        end, _ := time.datetime_to_time(track_point.time.(DateTime))
-        time_diff := time.diff(start, end)
-        assert(time_diff >= 0)
-
-        secs := time.duration_seconds(time_diff)
-        if secs > 0.0 {
-            track_point.speed = dist / f32(secs)
+            loaded_ext = track_load_extensions(&track_point, elements, elem)
         }
     }
 
     return
+}
+
+// uses the track points to calculate the remaining stats for the track
+track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
+
+    total_speed := track.points[0].speed
+    paused_time: f64
+    point_count := len(track.points)
+
+    // smoothed elevation and speed
+    for i in 1..<len(track.points) {
+        point := track.points[i]
+        prev := track.points[i - 1]
+
+        // exponential moving average
+        alpha: f32 = 0.1 // smoothing
+        ema_elev := alpha * point.elevation + (1 - alpha) * prev.elevation
+
+        // NOTE: we don't always get all the data so some values need to be calculated
+        // so we use haversine for distance
+
+        if .Distance not_in loaded_ext {
+            // distance using haversine
+            flat_dist := coord_distance(prev.coord, point.coord)
+            elev_diff := ema_elev - prev.elevation
+            dist := math.sqrt(elev_diff * elev_diff + flat_dist * flat_dist) // account for elevation diff
+            track.points[i].distance = prev.distance + dist
+            
+            if point.time != nil  {
+                start, _ := time.datetime_to_time(prev.time.(DateTime))
+                end, _ := time.datetime_to_time(point.time.(DateTime))
+                time_diff := time.diff(start, end)
+                assert(time_diff >= 0)
+                secs := time.duration_seconds(time_diff)
+                if secs > 0.0 {
+                    track.points[i].speed = dist / f32(secs)
+                    if secs > 2.0 {
+                        paused_time += secs
+                    }
+                }
+            } else {
+                // if we don't have time just use the standart 1 second delta
+                // This could maybe cause a speed jump when gps is paused but better than nothing
+                track.points[i].speed = dist / 1.0
+            }
+        }
+        // first make sure that there is a speed value
+        ema_speed := alpha * track.points[i].speed + (1 - alpha) * prev.speed
+
+        track.points[i].elevation = ema_elev
+        track.points[i].speed = ema_speed
+        diff := track.points[i].elevation - prev.elevation
+
+        if diff > 0.0 do track.elevation_gain += diff
+        total_speed += track.points[i].speed
+    }
+    track.avg_speed = total_speed / f32(point_count)
+
+    // get distance and duration from the last/first points
+    last := track.points[len(track.points) - 1]
+    first := track.points[0]
+    if last.distance > 0.0 {
+        track.total_distance = last.distance
+    }
+    if first.time != nil && last.time != nil {
+        first_time, _ := time.datetime_to_time(first.time.(DateTime))
+        last_time, _ := time.datetime_to_time(last.time.(DateTime))
+        duration := time.diff(first_time, last_time)
+
+        // NOTE: removing paused time, could add total and elapsed to track
+        secs := time.duration_seconds(duration)
+        secs -= paused_time
+        track.duration = time.Duration(secs * f64(time.Second))
+    }
 }
 
 track_load_extensions :: proc(track_point: ^Track_Point, 

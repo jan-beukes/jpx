@@ -124,6 +124,7 @@ _write_proc :: proc "c" (content: rawptr, size, nmemb: uint, user_data: rawptr) 
 
 poll_requests :: proc(cache: ^Tile_Cache) {
 
+    // poll tiles from disk
     if state.cache_to_disk {
         sync.mutex_try_lock(&thread_ctx.mutex)
         //log.debug(thread_ctx.loaded_tiles)
@@ -168,10 +169,14 @@ poll_requests :: proc(cache: ^Tile_Cache) {
             result_ok: if msg.data.result == .E_OK {
 
                 tile := chunk.tile
-                item := cache[tile]
+                item, ok := cache[tile]
+                // This can happen when a tile was cleaned up after the map style changed while it's
+                // request was active
+                if !ok {
+                    break result_ok
+                }
                 
                 style := req_state.tile_layer.style
-
                 ft: cstring = ".png" 
                 if style == .Mapbox_Satelite || style == .Mapbox_Outdoors {
                     ft = ".jpg"
@@ -209,11 +214,8 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                     }
                 } else {
                     delete_key(cache, tile)
-                    if req_state.tile_layer.style == .Osm {
-                        log.error("Could not load tile")
-                    } else {
-                        log.error("Could not load tile, maybe invalid key?")
-                    }
+                    // this might not be a good idea but usefull for debuging
+                    log.error("Could not load tile", string(chunk.data[:]))
                 }
             } else {
                 log.error("Request failed", msg.data.result)
