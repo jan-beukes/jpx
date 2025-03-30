@@ -35,7 +35,7 @@ Layer_Style :: enum i32 {
     Mapbox_Satelite,
 }
 
-// Prover URLS
+// Provider URLS
 OSM_URL: cstring : "https://tile.openstreetmap.org/%d/%d/%d.png"
 JAWG_URL: cstring :
 "https://tile.jawg.io/jawg-terrain/%d/%d/%d.png?access-token=%s&lang=en"
@@ -79,7 +79,6 @@ deinit_tile_fetching :: proc() {
     req_state.active_requests = 0
 }
 
-// switch the active layer to style
 get_tile_layer :: proc(style: Layer_Style, api_key := cstring("")) -> Tile_Layer {
     url: cstring
     name: cstring
@@ -180,8 +179,10 @@ evict_cache :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) {
 
 clear_cache :: proc(cache: ^Tile_Cache) {
     for key, item in cache {
-        rl.UnloadTexture(item.texture)
-        free(item)
-        delete_key(cache, key)
+        if item.ready {
+            rl.UnloadTexture(item.texture)
+            free(item)
+            delete_key(cache, key)
+        }
     }
 }

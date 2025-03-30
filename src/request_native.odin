@@ -176,9 +176,8 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                     break result_ok
                 }
                 
-                style := req_state.tile_layer.style
                 ft: cstring = ".png" 
-                if style == .Mapbox_Satelite || style == .Mapbox_Outdoors {
+                if item.style == .Mapbox_Satelite || item.style == .Mapbox_Outdoors {
                     ft = ".jpg"
                 }
                 // This guy allocates??
@@ -186,25 +185,26 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 delete(chunk.data)
 
                 // we also need to make sure that the tile's style is the same as what we are using
-                if img.data != nil && item.style == style {
+                if item.style != req_state.tile_layer.style {
+                    delete_key(cache, tile)
+                } else if img.data != nil {
                     texture := rl.LoadTextureFromImage(img)
                     rl.SetTextureFilter(texture, .BILINEAR)
-                    // Mirrored wrap fixes bilinear filter sampling on edges
-                    rl.SetTextureWrap(texture, .MIRROR_REPEAT) 
+                    rl.SetTextureWrap(texture, .MIRROR_REPEAT) // Mirrored wrap fixes bilinear filter sampling on edges
                     item^ = Tile_Data {
                         ready = true,
                         coord = tile_to_mercator(chunk.tile),
                         zoom = tile.zoom,
                         texture = texture,
-                        style = req_state.tile_layer.style,
                         last_accessed = rl.GetTime(),
                     }
 
+                    // save the requested tile to disk
                     if state.cache_to_disk {
                         sync.mutex_lock(&thread_ctx.mutex)
                         queue.append(&thread_ctx.save_queue, Tile_Save {
                             tile = tile,
-                            style = style,
+                            style = item.style,
                             style_name = req_state.tile_layer.name,
                             img = img,
                         })
@@ -212,6 +212,7 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                     } else {
                         rl.UnloadImage(img)
                     }
+
                 } else {
                     delete_key(cache, tile)
                     // this might not be a good idea but usefull for debuging

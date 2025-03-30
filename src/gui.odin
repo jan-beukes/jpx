@@ -1,9 +1,10 @@
 package jpx
 
-import rl "vendor:raylib"
+import "core:log"
 import "core:math"
 import "core:time"
 import "core:time/datetime"
+import rl "vendor:raylib"
 
 BORDER_THICK :: 1.2
 PADDING_FACTOR :: 0.2
@@ -41,12 +42,20 @@ COLORS :: Gui_Colors {
 }
 
 g_font: rl.Font
+gui_mouse_cursor: rl.MouseCursor
+@(private="file") cursor_was_set: bool
 
 draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
 }
 
-debug_ui :: proc(x, y: f32) {
+// this just resets gui stuff
+gui_begin :: proc() {
+    cursor_was_set = false
+    gui_mouse_cursor = .DEFAULT
+}
+
+gui_debug :: proc(x, y: f32) {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
 
     height: f32 = state.is_track_open ? 0.5 : 0.15
@@ -129,11 +138,101 @@ debug_ui :: proc(x, y: f32) {
 
 }
 
+// copyright info
+gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool) {
+    @(static) expanded: bool
+
+    icon_hover := false
+    mouse_pos := rl.GetMousePosition()
+    if rl.CheckCollisionPointRec(mouse_pos, rect) {
+        icon_hover = true
+        ui_focused^ = true
+        if rl.IsMouseButtonPressed(.LEFT) {
+            expanded = !expanded
+        }
+        gui_mouse_cursor = .POINTING_HAND
+    }
+
+    // attribution links
+    if expanded {
+        font_size := rect.height * 0.7
+        width := style == .Osm ? rect.width * 6.5 : rect.width * 10.5 // Osm will take less
+
+        expanded_rect := rl.Rectangle {
+            x = rect.x - width + BORDER_THICK,
+            y = rect.y,
+            width = width,
+            height = rect.height,
+        }
+        if rl.CheckCollisionPointRec(mouse_pos, expanded_rect) do ui_focused^ = true
+
+        rl.DrawRectangleRec(expanded_rect, WHITE)
+        rl.DrawRectangleLinesEx(expanded_rect, BORDER_THICK, DARK_BLUE)
+
+        // OSM
+        text: cstring = "(c) OpenStreetMap"
+        text_width := f32(rl.MeasureText(text, i32(font_size)))
+        text_rect := rl.Rectangle {
+            x = expanded_rect.x + BORDER_THICK,
+            y = expanded_rect.y + BORDER_THICK,
+            width = text_width,
+            height = rect.height,
+        }
+        text_hover := false
+        if rl.CheckCollisionPointRec(mouse_pos, text_rect) {
+            text_hover = true
+            gui_mouse_cursor = .POINTING_HAND
+            if rl.IsMouseButtonPressed(.LEFT) {
+                rl.OpenURL("https://www.openstreetmap.org/about")
+            }
+        }
+        color := text_hover ? rl.BLUE : rl.BLACK
+        draw_text(text, {text_rect.x, text_rect.y}, font_size, color)
+
+        // Other providers
+        if style != .Osm {
+            if style == .Jawg {
+                text = "(c) Jawg" 
+            } else {
+                text = "(c) Mapbox" 
+            }
+            text_rect.x += text_width + 0.5*font_size
+            text_rect.width = f32(rl.MeasureText(text, i32(font_size)))
+            text_hover = false
+            if rl.CheckCollisionPointRec(mouse_pos, text_rect) {
+                text_hover = true
+                gui_mouse_cursor = .POINTING_HAND
+                if rl.IsMouseButtonPressed(.LEFT) {
+                    if style == .Jawg {
+                        rl.OpenURL("https://www.jawg.io")
+                    } else {
+                        rl.OpenURL("https://www.mapbox.com/about/maps")
+                    }
+                }
+            }
+            color = text_hover ? rl.BLUE : rl.BLACK
+            draw_text(text, {text_rect.x, text_rect.y}, font_size, color)
+        }
+
+    }
+
+    // draw the icon last
+    font_size := rect.height
+    if icon_hover || expanded {
+        rl.DrawRectangleRec(rect, PEACH)
+    } else {
+        rl.DrawRectangleRec(rect, WHITE)
+    }
+    rl.DrawRectangleLinesEx(rect, BORDER_THICK, DARK_BLUE)
+    width := rl.MeasureText("i", i32(font_size))
+    draw_text("i", {rect.x + rect.width / 4.0, rect.y}, font_size, rl.DARKBLUE)
+}
 
 // Gui drop down, items will all be the same size as rect
 // ui_focus gets set when the mouse is hovering over the dropdown
 gui_drop_down :: proc(rect: rl.Rectangle, text: cstring, items: []cstring, selected: ^int, ui_focus: ^bool) -> bool {
     @(static) expanded: bool
+
     hover_item := -1
     did_select: bool
 

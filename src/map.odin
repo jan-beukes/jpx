@@ -152,7 +152,7 @@ get_tile_rect :: proc(map_screen: Map_Screen, tile_data: ^Tile_Data) -> rl.Recta
     return {pos.x, pos.y, size, size}
 }
 
-// find the bounding box of the track and return the center and 
+// find the bounding box of the track and return the center
 get_map_pos_from_track :: proc(track_points: [dynamic]Track_Point) -> (Coord, i32) {
 
     min_lat, min_lon: f64 = 180.0, 180.0

@@ -32,11 +32,11 @@ ZOOM_FRAMES :: 10
 MOVE_FRICTION :: 2400
 MAX_SPEED :: 1600
 
-TEST_LOC :: Coord{18.8843, -33.9467}
-
 // Track
 TRACK_LINE_THICK :: 4
 END_POINT_RADIUS :: 6.0
+
+FONT_DATA :: #load("../res/font.ttf")
 
 USAGE :: 
 `
@@ -91,7 +91,7 @@ Draw_Track :: struct {
     coords: []Mercator_Coord, // the coordinates are computed from track points
                               // and must be scaled when zoom changes 
 
-    points: []rl.Vector2, // the points that gets passed to DrawLineStrip
+    points: []rl.Vector2, // the points that get passed to DrawLineStrip
     zoom: i32,
     color: rl.Color,
 }
@@ -132,9 +132,11 @@ draw_track :: proc() {
 // since we are using a type of imgui the drawing and logic of the gui are in the same place
 handle_ui :: proc() {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
-    // we reset this so that the ui functions can set it when they are focused
-    state.ui_is_focused = false 
 
+    state.ui_is_focused = false
+    @(static) mouse_cursor: rl.MouseCursor
+
+    gui_begin()
 
     //---Tile Layers dropdown---
     size: f32 = WINDOW_HEIGHT * 0.18
@@ -150,7 +152,16 @@ handle_ui :: proc() {
         switch_tile_layer(Layer_Style(selected))
     }
 
-    when ODIN_DEBUG do debug_ui(0, 0)
+    when ODIN_DEBUG do gui_debug(0, 0)
+
+    size = WINDOW_HEIGHT * 0.03
+    rect = rl.Rectangle{f32(window_width) - 1.1*size, f32(window_height) - 1.1*size, size, size}
+    gui_copyright(rect, req_state.tile_layer.style, &state.ui_is_focused)
+
+    if mouse_cursor != gui_mouse_cursor {
+        rl.SetMouseCursor(gui_mouse_cursor)
+        mouse_cursor = gui_mouse_cursor
+    }
 }
 
 // switch the active tile layer
@@ -189,6 +200,18 @@ switch_tile_layer :: proc(style: Layer_Style) {
             state.draw_track.coords[i] = coord_to_mercator(point.coord, state.map_screen.zoom)
         }
     }
+}
+
+// set the map screen to the center of the loaded track
+center_map_to_track :: proc() {
+    assert(state.is_track_open)
+
+    coord, zoom := get_map_pos_from_track(state.track.points)
+    state.map_screen.center = coord_to_mercator(coord, zoom)
+    state.map_screen.zoom = zoom
+    state.map_screen.scale = 1.0
+    state.map_screen.width = rl.GetScreenWidth()
+    state.map_screen.height = rl.GetScreenHeight()
 }
 
 zoom_map :: proc(step: f32, window_width, window_height: i32) {
@@ -337,14 +360,8 @@ handle_input :: proc() {
         }
     }
 
-    // reset map screen
     if rl.IsKeyPressed(.R) {
-        coord, zoom := get_map_pos_from_track(state.track.points)
-        state.map_screen.center = coord_to_mercator(coord, zoom)
-        state.map_screen.zoom = zoom
-        state.map_screen.scale = 1.0
-        state.map_screen.width = WINDOW_WIDTH
-        state.map_screen.height = WINDOW_HEIGHT
+        center_map_to_track()
     }
 }
 
@@ -513,26 +530,19 @@ main :: proc() {
     rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
     defer rl.CloseWindow()
-    rl.SetTargetFPS(FPS) // idk
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
+    rl.SetTargetFPS(FPS) // idk
+    when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
 
     rlgl.SetLineWidth(TRACK_LINE_THICK)
     rlgl.EnableSmoothLines()
 
-    // TODO: just embedd when good font has been chosen
-    g_font = rl.LoadFontEx("res/font.ttf", 96, nil, 0)
+    g_font = rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 96, nil, 0)
     rl.SetTextureFilter(g_font.texture, .BILINEAR)
 
     // initialize the map screen and draw state
     if state.is_track_open {
-        coord, zoom := get_map_pos_from_track(state.track.points)
-        state.map_screen = Map_Screen {
-            center = coord_to_mercator(coord, zoom),
-            width = WINDOW_WIDTH,
-            height = WINDOW_HEIGHT,
-            zoom = zoom,
-            scale = 1.0,
-        }
+        center_map_to_track()
         state.draw_track.zoom = state.map_screen.zoom
         for i := 0; i < len(state.track.points); i += 1 {
             state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
