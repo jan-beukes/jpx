@@ -24,6 +24,9 @@ OPTIONS:
 | 2     | Mapbox outdoors  | Needs key [Mapbox](https://www.mapbox.com/) |
 | 3     | Mapbox satelite  | Needs key [Mapbox](https://www.mapbox.com/) |
 
+> [!Note]
+> Tiles are cached on disk in the .cache directory
+
 ### Config
 the config file is **jpx.ini** in the same directory as the executable
 
