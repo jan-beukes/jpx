@@ -1,10 +1,14 @@
-# JPX
-
-Raster slippy map renderer for gps track viewing
-
-**Dependencies**
-- raylib
-- libcurl (native)
+<!-- LOGO -->
+<h1>
+<p align="center">
+  <img src="res/icon@2x.png" alt="Logo" width="256">
+  <br>Jpx
+</h1>
+  <p align="center">
+    A raster slippy map renderer for viewing gps tracks 
+    <br>made using raylib and libcurl
+  </p>
+</p>
 
 ## Usage
 ```
