@@ -179,7 +179,8 @@ get_map_pos_from_track :: proc(track_points: [dynamic]Track_Point) -> (Coord, i3
     return coord, zoom
 }
 
-//---Map tile requesting function---
+//---Map tile requesting functions---
+
 
 // get the tile from cache and add it to the array
 // we need to do this since higher res fallback will return 4 tiles
@@ -208,6 +209,7 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
     max_requests: i32 = req_state.tile_layer.style == .Osm ? MAX_ACTIVE_REQUESTS / 2 : MAX_ACTIVE_REQUESTS
 
     // request the tile
+    cache_limit := req_state.tile_layer.tile_size == 512 ? CACHE_LIMIT / 2 : CACHE_LIMIT
     if !ok && len(cache) < CACHE_LIMIT && req_state.active_requests < max_requests {
         new_tile(cache, tile)
     } 

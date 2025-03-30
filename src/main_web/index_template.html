@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <title>Odin + Raylib on the web</title>
+    <meta name="title" content="Odin + Raylib on the web">
+    <meta name="description" content="Make games using Odin + Raylib that work in the browser">
+    <meta name="viewport" content="width=device-width">
+
+    <style>
+        body { 
+            margin: 0px; 
+            overflow: hidden; 
+            background-color: black;
+        }
+        canvas.game_canvas { 
+            border: 0px none; 
+            background-color: black;
+            padding-left: 0;
+            padding-right: 0;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas class="game_canvas" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+    <script type="text/javascript" src="odin.js"></script>
+    <script type="text/javascript" src="jpx.js"></script>
+
+    <!-- Emscripten injects its javascript here -->
+    {{{ SCRIPT }}}
+</body>
+</html>

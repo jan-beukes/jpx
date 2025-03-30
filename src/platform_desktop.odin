@@ -1,6 +1,8 @@
 #+build !js
-
 package jpx
+
+// Desktop implementation of the platform specific code
+// currently requests and file dialog
 
 import "base:runtime"
 import "core:path/filepath"
@@ -50,14 +52,14 @@ Thread_Context :: struct {
 @(private="file") thread_ctx: Thread_Context
 @(private="file") is_offline: bool
 
-init_request_platform :: proc(offline: bool) {
+init_platform_requests :: proc(offline: bool) {
     request_context = context
     is_offline = offline
     req_state.m_handle = curl.multi_init()
     thread.run(io_thread_proc)
 }
 
-deinit_request_platform :: proc() {
+deinit_platform_requests :: proc() {
     curl.multi_cleanup(req_state.m_handle)
 }
 
@@ -82,6 +84,7 @@ io_thread_proc :: proc () {
         save, save_ok = queue.pop_front_safe(&thread_ctx.save_queue)
         sync.mutex_unlock(&thread_ctx.mutex)
 
+
         if read_ok {
             ft: cstring = read.style == .Mapbox_Outdoors || read.style == .Mapbox_Satelite ? ".jpg" : ".png"
             file := get_tile_file(read.tile, read.style_name, ft)
@@ -99,7 +102,10 @@ io_thread_proc :: proc () {
         if save_ok {
             ft: cstring = save.style == .Mapbox_Outdoors || save.style == .Mapbox_Satelite ? ".jpg" : ".png"
             file := get_tile_file(save.tile, save.style_name, ft)
-            rl.MakeDirectory(rl.GetDirectoryPath(file))
+            dirpath := rl.GetDirectoryPath(file)
+            if !rl.DirectoryExists(dirpath) {
+                rl.MakeDirectory(dirpath)
+            }
             if !rl.ExportImage(save.img, file) {
                 fmt.eprintln("Could not cache tile", file)
             }
@@ -126,8 +132,8 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 
     // poll tiles from disk
     if state.cache_to_disk {
-        sync.mutex_try_lock(&thread_ctx.mutex)
         //log.debug(thread_ctx.loaded_tiles)
+        sync.mutex_try_lock(&thread_ctx.mutex)
         for thread_ctx.loaded_tiles.len > 0 {
             loaded := queue.pop_front(&thread_ctx.loaded_tiles)
             item, ok := cache[loaded.tile]
@@ -194,6 +200,7 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                     item^ = Tile_Data {
                         ready = true,
                         coord = tile_to_mercator(chunk.tile),
+                        style = item.style,
                         zoom = tile.zoom,
                         texture = texture,
                         last_accessed = rl.GetTime(),

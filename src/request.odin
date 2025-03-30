@@ -65,9 +65,9 @@ req_state: Req_State
 
 init_tile_fetching :: proc(style: Layer_Style, api_key: cstring, offline := false) {
     when ODIN_OS == .JS {
-        init_request_platform()
+        init_platform_requests()
     } else {
-        init_request_platform(offline)
+        init_platform_requests(offline)
     }
     req_state.ready = true
     req_state.active_requests = 0
@@ -75,7 +75,7 @@ init_tile_fetching :: proc(style: Layer_Style, api_key: cstring, offline := fals
 }
 
 deinit_tile_fetching :: proc() {
-    deinit_request_platform()
+    deinit_platform_requests()
     req_state.active_requests = 0
 }
 

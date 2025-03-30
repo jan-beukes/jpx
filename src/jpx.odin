@@ -27,7 +27,7 @@ MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
 
 // Movement
-ZOOM_STEP :: 0.3
+ZOOM_STEP :: 0.4
 ZOOM_FRAMES :: 10
 MOVE_FRICTION :: 2400
 MAX_SPEED :: 1600
@@ -37,6 +37,7 @@ TRACK_LINE_THICK :: 4
 END_POINT_RADIUS :: 6.0
 
 FONT_DATA :: #load("../res/font.ttf")
+ICON_DATA :: #load("../res/icon.png")
 
 USAGE :: 
 `
@@ -465,38 +466,49 @@ load_user_config :: proc() -> (config: Config) {
     return
 }
 
-main :: proc() {
-    argv := os.args
-    context.logger = log.create_console_logger(
-        .Debug when ODIN_DEBUG else .Info,
-        log.Options{.Level, .Terminal_Color},
-    )
+// Extra platform stuff for web
 
-    // change to application directory and make cache dir on desktop
+parent_window_size_changed :: proc(w, h: int) {
+    rl.SetWindowSize(i32(w), i32(h))
+}
+
+should_run :: proc() -> bool {
     when ODIN_OS != .JS {
-        dir := filepath.dir(argv[0])
-        os.change_directory(dir)
-
-        os.make_directory(CACHE_DIR)
-        state.cache_to_disk = true
+        return !rl.WindowShouldClose()
     } else {
-        state.cache_to_disk = false
+        // NOTE: not sure when 
+        return true
     }
+}
 
+shutdown :: proc() {
+    rl.CloseWindow()
+    deinit_tile_fetching()
+
+}
+
+init :: proc(dir := "") {
     /*****************
     * Initialization
     ******************/
 
-    // flags and config file
-    flags := parse_flags(argv)
-    state.config = load_user_config()
+    flags: Flags
+    when ODIN_OS != .JS {
+        // flags and config file
+        flags = parse_flags(os.args)
+        state.config = load_user_config()
+        state.cache_to_disk = true
+    }
 
     // load track if input file was provided
     if flags.input_file == "" {
         state.is_track_open = false
     } else {
+        // if launched from another directory we need to join the path given from main 
+        // since we are currently in the directory of the executable
+        file := filepath.join({dir, flags.input_file})
         ok: bool
-        state.track, ok = track_load_from_file(flags.input_file)
+        state.track, ok = track_load_from_file(file)
         if ok {
             // allocate for the draw track
             // the setup needs to come after we setup the map screen
@@ -523,14 +535,13 @@ main :: proc() {
     }
     init_tile_fetching(flags.layer_style, 
         state.config.api_keys[flags.layer_style], flags.offline)
-    defer deinit_request_platform()
 
     // Raylib setup
     rl.SetTraceLogLevel(.ERROR)
     rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
-    defer rl.CloseWindow()
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
+    rl.SetWindowIcon(rl.LoadImageFromMemory(".png", raw_data(ICON_DATA), i32(len(ICON_DATA))))
     rl.SetTargetFPS(FPS) // idk
     when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
 
@@ -568,7 +579,4 @@ main :: proc() {
         new_tile(&state.cache, tile)
     }
 
-    for !rl.WindowShouldClose() {
-        update()
-    }
 }
