@@ -31,7 +31,16 @@ OPTIONS:
 > [!Note]
 > Tiles are cached on disk in the .cache directory
 
-### Config
+## Controls 
+| Action | Control         |
+|-------|------------------|
+| maximize     | f         |
+| reset camera | r         |
+| open file    | o         |
+
+drag and drop is also supported
+
+## Config
 the config file is **jpx.ini** in the same directory as the executable
 
 You can add keys to the config file to always have access to those map styles
