@@ -198,12 +198,46 @@ switch_tile_layer :: proc(style: Layer_Style) {
 center_map_to_track :: proc() {
     assert(state.is_track_open)
 
+    // this just makes sure it works during initialization
+    window_width, window_height: i32 = WINDOW_WIDTH, WINDOW_HEIGHT
+    if rl.IsWindowReady() {
+        window_width, window_height = rl.GetScreenWidth(), rl.GetScreenHeight()
+    }
+
     coord, zoom := get_map_pos_from_track(state.track.points)
     state.map_screen.center = coord_to_mercator(coord, zoom)
     state.map_screen.zoom = zoom
     state.map_screen.scale = 1.0
-    state.map_screen.width = rl.GetScreenWidth()
-    state.map_screen.height = rl.GetScreenHeight()
+    state.map_screen.width = window_width
+    state.map_screen.height = window_height
+}
+
+open_new_track :: proc(file: string) {
+    // free all the previous track data
+    if state.is_track_open {
+        track_unload(&state.track)
+        delete(state.draw_track.points)
+        delete(state.draw_track.coords)
+    }
+    ok: bool
+    state.track, ok = track_load_from_file(file)
+    if ok {
+        // allocate for the draw track
+        // the setup needs to come after we setup the map screen
+        state.is_track_open = true
+        state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
+        state.draw_track.points = make([]rl.Vector2, len(state.track.points))
+        state.draw_track.color = ORANGE
+
+        center_map_to_track()
+        state.draw_track.zoom = state.map_screen.zoom
+        for i := 0; i < len(state.track.points); i += 1 {
+            state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
+                state.draw_track.zoom)
+        }
+    } else {
+        state.is_track_open = false
+    }
 }
 
 zoom_map :: proc(step: f32, window_width, window_height: i32) {
@@ -351,9 +385,14 @@ handle_input :: proc() {
             rl.MaximizeWindow()
         }
     }
-
     if rl.IsKeyPressed(.R) {
-        center_map_to_track()
+        if state.is_track_open {
+            center_map_to_track()
+        }
+    }
+
+    if rl.IsKeyPressed(.O) {
+        open_new_track(open_file_dialog())
     }
 }
 
@@ -428,15 +467,8 @@ init :: proc() {
     g_font = rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 96, nil, 0)
     rl.SetTextureFilter(g_font.texture, .BILINEAR)
 
-    // initialize the map screen and draw state
-    if state.is_track_open {
-        center_map_to_track()
-        state.draw_track.zoom = state.map_screen.zoom
-        for i := 0; i < len(state.track.points); i += 1 {
-            state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
-                state.draw_track.zoom)
-        }
-    } else {
+    // initialize map screen if we didn't already from platform
+    if !state.is_track_open {
         state.map_screen = Map_Screen {
             center = coord_to_mercator({23.5, 0}, 3),
             width = rl.GetScreenWidth(),

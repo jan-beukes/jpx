@@ -19,6 +19,7 @@ import "core:log"
 import "core:mem"
 
 import "curl"
+import tinyfd "tinyfiledialogs"
 import rl "vendor:raylib"
 
 CACHE_DIR :: ".cache"
@@ -63,27 +64,6 @@ init_platform :: proc(dir: string) {
     state.config = load_user_config()
     state.cache_to_disk = true
 
-    // load track if input file was provided
-    if flags.input_file == "" {
-        state.is_track_open = false
-    } else {
-        // if launched from another directory we need to join the path given from main 
-        // since we are currently in the directory of the executable
-        file := filepath.join({dir, flags.input_file})
-        ok: bool
-        state.track, ok = track_load_from_file(file)
-        if ok {
-            // allocate for the draw track
-            // the setup needs to come after we setup the map screen
-            state.is_track_open = true
-            state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
-            state.draw_track.points = make([]rl.Vector2, len(state.track.points))
-            state.draw_track.color = ORANGE
-        } else {
-            state.is_track_open = false
-        }
-    }
-
     // api key config
     api_key := strings.clone_to_cstring(flags.api_key)
     layer_style := flags.layer_style
@@ -99,6 +79,18 @@ init_platform :: proc(dir: string) {
 
     init_tile_fetching(flags.layer_style, 
         state.config.api_keys[flags.layer_style], flags.offline)
+
+    // load track if input file was provided
+    if flags.input_file == "" {
+        state.is_track_open = false
+    } else {
+        // if launched from another directory we need to join the path given from main 
+        // since we are currently in the directory of the executable
+        file := filepath.join({dir, flags.input_file})
+        open_new_track(file)
+    }
+
+    // platform state
     request_context = context
     is_offline = flags.offline
     req_state.m_handle = curl.multi_init()
@@ -171,6 +163,11 @@ load_user_config :: proc() -> (config: Config) {
     return
 }
 
+open_file_dialog :: proc() -> string {
+    file := tinyfd.openFileDialog("Open file", nil, 0, nil, nil, 0)
+    return string(file)
+}
+
 _track_load_from_file :: proc(file: string, allocator := context.allocator) -> (track: Gps_Track, ok: bool) {
     context.allocator = allocator
 
@@ -182,7 +179,6 @@ _track_load_from_file :: proc(file: string, allocator := context.allocator) -> (
         track = {}
         ok = false
     }
-
     return
 }
 
