@@ -41,7 +41,6 @@ Jawg=YOUR_KEY
 Mapbox=YOUR_KEY
 ```
 
-
 ## References
 https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames 
 
