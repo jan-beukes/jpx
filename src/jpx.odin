@@ -131,8 +131,9 @@ handle_ui :: proc() {
     gui_begin()
 
     //---Tile Layers dropdown---
-    size: f32 = WINDOW_HEIGHT * 0.18
-    rect := rl.Rectangle{f32(window_width) - size, 0, size, size * 0.2}
+    width: f32 = WINDOW_HEIGHT * 0.18
+    height := width * 0.2
+    rect := rl.Rectangle{f32(window_width) - width, 0, width, height}
     items := []cstring {
         "Osm",
         "Jawg Outdoors",
@@ -144,12 +145,21 @@ handle_ui :: proc() {
         switch_tile_layer(Layer_Style(selected))
     }
 
-    when ODIN_DEBUG do gui_debug(0, 0)
-
-    size = WINDOW_HEIGHT * 0.03
+    size: f32 = WINDOW_HEIGHT * 0.03
     rect = rl.Rectangle{f32(window_width) - 1.1*size, f32(window_height) - 1.1*size, size, size}
     gui_copyright(rect, req_state.tile_layer.style, &state.ui_is_focused)
 
+    width = WINDOW_HEIGHT * 0.18
+    height = width * 0.2
+    rect = rl.Rectangle{0, 0, width, height}
+    if gui_button(rect, "Open file", &state.ui_is_focused) {
+        file := open_file_dialog()
+        if file != "" do open_new_track(file)
+    }
+
+    when ODIN_DEBUG do gui_debug(0, height + height*0.5)
+
+    // change cursor
     if mouse_cursor != gui_mouse_cursor {
         rl.SetMouseCursor(gui_mouse_cursor)
         mouse_cursor = gui_mouse_cursor
@@ -392,7 +402,8 @@ handle_input :: proc() {
     }
 
     if rl.IsKeyPressed(.O) {
-        open_new_track(open_file_dialog())
+        file := open_file_dialog()
+        if file != "" do open_new_track(file)
     }
 }
 

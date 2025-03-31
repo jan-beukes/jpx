@@ -42,15 +42,13 @@ COLORS :: Gui_Colors {
 
 g_font: rl.Font
 gui_mouse_cursor: rl.MouseCursor
-@(private="file") cursor_was_set: bool
 
 draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
 }
 
-// this just resets gui stuff
+// this just resets gui cursor stuff
 gui_begin :: proc() {
-    cursor_was_set = false
     gui_mouse_cursor = .DEFAULT
 }
 
@@ -60,9 +58,9 @@ gui_debug :: proc(x, y: f32) {
     height: f32 = state.is_track_open ? 0.5 : 0.15
     overlay := rl.Vector2 {
         f32(WINDOW_HEIGHT) * 0.35,
-        f32(WINDOW_HEIGHT) * height,
+        f32(WINDOW_HEIGHT) * 0.9,
     }
-    rl.DrawRectangleV({x, y}, overlay, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    rl.DrawRectangleRounded({-20.0, y, overlay.x, overlay.y}, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
 
     padding := overlay.y * 0.02
     font_size: f32 = WINDOW_HEIGHT / 40.0
@@ -135,6 +133,34 @@ gui_debug :: proc(x, y: f32) {
         draw_text(text, cursor, font_size, WHITE)
     }
 
+}
+
+gui_button :: proc(rect: rl.Rectangle, text: cstring, ui_focused: ^bool) -> bool {
+    mouse_pos := rl.GetMousePosition()
+
+    hover: bool
+    pressed: bool
+    if rl.CheckCollisionPointRec(mouse_pos, rect) {
+        ui_focused^ = true
+        hover = true
+        gui_mouse_cursor = .POINTING_HAND
+        if rl.IsMouseButtonPressed(.LEFT) {
+            pressed = true
+        }
+    }
+
+    // Base rect
+    padding := rect.height * PADDING_FACTOR
+    font_size := rect.height - 2 * padding
+    if hover {
+        rl.DrawRectangleRec(rect, COLORS.hover)
+    } else {
+        rl.DrawRectangleRec(rect, COLORS.bg)
+    }
+    draw_text(text, {rect.x + padding, rect.y + padding}, font_size, COLORS.fg)
+    rl.DrawRectangleLinesEx(rect, BORDER_THICK, COLORS.border)
+
+    return pressed
 }
 
 // copyright info

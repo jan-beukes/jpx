@@ -44,9 +44,14 @@ _track_load_from_file :: proc(file: string, allocator := context.allocator) -> (
     return
 }
 
+open_file_dialog :: proc() -> string {
+    return ""
+}
+
 // need to seperate since timezone isn't implemented on web
 // could implement this with js
 date_time_to_local :: proc(date_time: ^datetime.DateTime) {
+
 }
 
 /**********
