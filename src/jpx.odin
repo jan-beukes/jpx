@@ -153,8 +153,12 @@ handle_ui :: proc() {
     rect = rl.Rectangle{0, 0, width, height}
     if gui_button(rect, "Open file", &state.ui_is_focused) {
         file := open_file_dialog()
-        track, ok := track_load_from_file(file)
-        if file != "" do open_new_track(track)
+        if file != "" {
+            track, ok := track_load_from_file(file)
+            if ok {
+                open_new_track(track)
+            }
+        }
     }
 
     when ODIN_DEBUG do gui_debug(0, height + height*0.5)
@@ -402,9 +406,11 @@ handle_input :: proc() {
     }
     if rl.IsKeyPressed(.O) {
         file := open_file_dialog()
-        track, ok := track_load_from_file(file)
-        if ok {
-            open_new_track(track)
+        if file != "" {
+            track, ok := track_load_from_file(file)
+            if ok {
+                open_new_track(track)
+            }
         }
     }
 

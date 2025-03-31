@@ -19,47 +19,38 @@ function fetchTile(urlPtr, urlLen, tileX, tileY, tileZ) {
         .catch(error => console.error("Fetch failed:", error));
 }
 
-function dropEvent(event) {
-    var canvas = document.getElementById("canvas");
-    event.preventDefault();
-    event.stopPropagation();
-    canvas.classList.remove('drag-over');
-    console.log('Drop Event');
+function processFile(file) {
 
-    const files = event.dataTransfer.files;
-
-    if (files.length > 0) {
-        const file = files[0];
-        const reader = new FileReader();
-
-        // on successful read
-        reader.onload = function(e) {
-            const fileData = e.target.result; // ArrayBuffer
-            const byteArray = new Uint8Array(fileData);
-
-            const exports = odinInterface.exports;
-            console.log(byteArray.length);
-            // alloc in wasm
-            const ptr = exports.malloc(byteArray.length);
-            const dstArray = new Uint8Array(odinInterface.memory.buffer, ptr, byteArray.length);
-            dstArray.set(byteArray);
-
-            // call wasm to handle opened file
-            exports.track_load_callback(ptr, dstArray.length)
-        };
-
-        reader.onerror = function(e) {
-            console.error("Error reading file:", e);
-        };
-
-        // read the file
-        const fileName = file.name.toLowerCase();
-        if (fileName.endsWith(".gpx")) {
-            reader.readAsArrayBuffer(file)
-        } else {
-            console.error("Unsupported file type:", fileName);
-        }
+    const fileName = file.name.toLowerCase();
+    // make sure this is a valid file type
+    if (!fileName.endsWith(".gpx")) {
+        console.error("Unsupported file type:", fileName);
+        return;
     }
+
+    const reader = new FileReader();
+
+    // on successful read
+    reader.onload = function(e) {
+        const fileData = e.target.result; // ArrayBuffer
+        const byteArray = new Uint8Array(fileData);
+
+        const exports = odinInterface.exports;
+        // alloc in wasm
+        const ptr = exports.malloc(byteArray.length);
+        const dstArray = new Uint8Array(odinInterface.memory.buffer, ptr, byteArray.length);
+        dstArray.set(byteArray);
+
+        // call wasm to handle opened file
+        exports.track_load_callback(ptr, dstArray.length)
+    };
+
+    reader.onerror = function(e) {
+        console.error("Error reading file:", e);
+    };
+
+    // read the file
+    reader.readAsArrayBuffer(file)
 }
 
 // The Module is used as configuration for emscripten.
@@ -69,6 +60,10 @@ var Module = {
 
         // extra imports
         imports.env.fetchTile = fetchTile;
+        imports.env.openFileDialog = function() {
+            const fileInput = document.getElementById("fileInput");
+            fileInput.click();
+        }
 
         const newImports = {
             ...odinImports,
@@ -105,6 +100,22 @@ var Module = {
 
         var canvas = document.getElementById("canvas");
 
+        // event for fileDialog click
+        const fileInput = document.getElementById("fileInput");
+        fileInput.addEventListener("change", function(event) {
+            const files = event.target.files;
+            if (files && files.length > 0) {
+                const file = files[0];
+                processFile(file);
+
+                // Reset the input value
+                event.target.value = null
+            }
+
+            // FIX: dispatch a fake mouse release to browser to reset input
+            canvas.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+        })
+
         //--- Drag and drop events---
         canvas.addEventListener("dragenter", function(event) {
             event.preventDefault();
@@ -121,10 +132,18 @@ var Module = {
             event.preventDefault();
             event.stopPropagation();
             canvas.classList.remove('drag-over');
-            console.log('Drag Leave');
         });
 
-        canvas.addEventListener("drop", dropEvent)
+        canvas.addEventListener("drop", function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            canvas.classList.remove('drag-over');
+            const files = event.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                processFile(file)
+            }
+        })
 
         // Runs the "main loop".
         function do_main_update() {

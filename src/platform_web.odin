@@ -46,9 +46,9 @@ track_load_callback :: proc "c" (data: rawptr, len: i32) {
 }
 
 open_file_dialog :: proc() -> string {
+    openFileDialog()
     return ""
 }
-
 _track_load_from_file :: proc(file: string, allocator := context.allocator) -> (track: Gps_Track,
     ok: bool){
     return
