@@ -5,8 +5,9 @@ package jpx
 import "core:math"
 import "core:slice"
 import "core:log"
+// import "core:fmt"
+
 import rl "vendor:raylib"
-import "core:fmt"
 
 MIN_ZOOM :: 2
 ZOOM_FALLBACK_LIMIT :: 8
@@ -210,7 +211,7 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
 
     // request the tile
     cache_limit := req_state.tile_layer.tile_size == 512 ? CACHE_LIMIT / 2 : CACHE_LIMIT
-    if !ok && len(cache) < CACHE_LIMIT && req_state.active_requests < max_requests {
+    if !ok && len(cache) < cache_limit && req_state.active_requests < max_requests {
         new_tile(cache, tile)
     } 
 

@@ -17,7 +17,9 @@ main :: proc () {
     os.set_current_directory(dir)
     os.make_directory(jpx.CACHE_DIR)
 
-    jpx.init(cwd)
+    jpx.init_platform(cwd)
+    jpx.init()
+
     for jpx.should_run() {
         jpx.update()
     }

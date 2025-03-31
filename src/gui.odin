@@ -1,6 +1,5 @@
 package jpx
 
-import "core:log"
 import "core:math"
 import "core:time"
 import "core:time/datetime"
@@ -224,7 +223,6 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
         rl.DrawRectangleRec(rect, WHITE)
     }
     rl.DrawRectangleLinesEx(rect, BORDER_THICK, DARK_BLUE)
-    width := rl.MeasureText("i", i32(font_size))
     draw_text("i", {rect.x + rect.width / 4.0, rect.y}, font_size, rl.DARKBLUE)
 }
 

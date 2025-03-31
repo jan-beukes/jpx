@@ -1,11 +1,5 @@
 package jpx
 
-import "core:mem"
-import "core:fmt"
-import "core:math"
-import "core:log"
-import "base:runtime"
-
 import rl "vendor:raylib"
 
 MAX_ACTIVE_REQUESTS :: 32
@@ -64,19 +58,9 @@ Req_State :: struct {
 req_state: Req_State
 
 init_tile_fetching :: proc(style: Layer_Style, api_key: cstring, offline := false) {
-    when ODIN_OS == .JS {
-        init_platform_requests()
-    } else {
-        init_platform_requests(offline)
-    }
     req_state.ready = true
     req_state.active_requests = 0
     req_state.tile_layer = get_tile_layer(style, api_key)
-}
-
-deinit_tile_fetching :: proc() {
-    deinit_platform_requests()
-    req_state.active_requests = 0
 }
 
 get_tile_layer :: proc(style: Layer_Style, api_key := cstring("")) -> Tile_Layer {

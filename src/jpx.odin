@@ -1,19 +1,10 @@
 package jpx
 
 import "core:fmt"
-import os "core:os/os2"
-import "core:path/filepath"
-import "core:mem"
-import "core:io"
-import "core:encoding/ini"
-import "core:strconv"
 import "core:strings"
-import "core:flags"
-import "core:time"
-import "core:time/datetime"
-import "core:log"
-import "core:math"
 import "core:math/linalg"
+import "core:math"
+import "core:log"
 
 import rl "vendor:raylib"
 import rlgl "vendor:raylib/rlgl"
@@ -243,7 +234,7 @@ zoom_map :: proc(step: f32, window_width, window_height: i32) {
 
 handle_input :: proc() {
 
-    dt: f32 = (1.0 / FPS)
+    dt := rl.GetFrameTime()
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
     if rl.IsWindowResized() {
         state.map_screen.width = i32(f32(window_width) / state.map_screen.scale)
@@ -367,8 +358,6 @@ handle_input :: proc() {
 }
 
 update :: proc() {
-    rl.SetWindowTitle(rl.TextFormat("jpx | %d", rl.GetFPS()))
-
     // only evict when we are near the limit
     if rl.GetTime() - state.last_eviction > CACHE_TIMEOUT {
         evict_cache(&state.cache, state.map_screen)
@@ -386,9 +375,7 @@ update :: proc() {
     rl.ClearBackground(req_state.tile_layer.clear_color)
 
     // Tiles
-    tile_size := req_state.tile_layer.tile_size
     for item in tiles {
-        pos := item.coord
         src := rl.Rectangle{0, 0, f32(item.texture.width), f32(item.texture.height)}
         tile_rect := get_tile_rect(state.map_screen, item)
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
@@ -406,68 +393,8 @@ update :: proc() {
     free_all(context.temp_allocator)
 }
 
-parse_flags :: proc(argv: []string) -> Flags {
-    if len(argv) < 2 do return {}
-
-    flags: Flags
-    for i := 1; i < len(argv); i += 1 {
-        is_last := i == len(argv) - 1
-
-        // flags that expect a value can't be the last arg
-        if strings.compare(argv[i], "-s") == 0 {
-            if is_last {
-                fmt.eprint(USAGE); os.exit(1)
-            }
-            i += 1
-            num, ok := strconv.parse_int(argv[i])
-            if !ok || num >= len(Layer_Style) {
-                fmt.eprint(USAGE)
-                os.exit(1)
-            }
-            flags.layer_style = Layer_Style(num)
-        } else if strings.compare(argv[i], "-k") == 0 {
-            if is_last {
-                fmt.eprint(USAGE); os.exit(1)
-            }
-            i += 1
-            flags.api_key = argv[i]
-        // file must always be first if it is provided
-        } else if strings.compare(argv[i], "--offline") == 0 {
-            flags.offline = true
-        } else if i == 1 {
-            flags.input_file = argv[i]
-        } else {
-            fmt.eprint(USAGE)
-            os.exit(1)
-        }
-    }
-    return flags
-}
-
-load_user_config :: proc() -> (config: Config) {
-    config_map, _, ok := ini.load_map_from_path("jpx.ini", context.allocator)
-    // no config
-    if !ok {
-        return
-    }
-    // API Keys
-    if ("Keys" in config_map) {
-        api_keys := config_map["Keys"]
-        if "Jawg" in api_keys {
-            config.api_keys[.Jawg] = strings.clone_to_cstring(api_keys["Jawg"])
-        }
-        if "Mapbox" in api_keys {
-            key := strings.clone_to_cstring(api_keys["Mapbox"])
-            config.api_keys[.Mapbox_Outdoors] = key
-            config.api_keys[.Mapbox_Satelite] = key
-        }
-    }
-
-    return
-}
 
 // Extra platform stuff for web
-
 parent_window_size_changed :: proc(w, h: int) {
     rl.SetWindowSize(i32(w), i32(h))
 }
@@ -476,65 +403,16 @@ should_run :: proc() -> bool {
     when ODIN_OS != .JS {
         return !rl.WindowShouldClose()
     } else {
-        // NOTE: not sure when 
         return true
     }
 }
 
 shutdown :: proc() {
     rl.CloseWindow()
-    deinit_tile_fetching()
-
+    deinit_platform()
 }
 
-init :: proc(dir := "") {
-    /*****************
-    * Initialization
-    ******************/
-
-    flags: Flags
-    when ODIN_OS != .JS {
-        // flags and config file
-        flags = parse_flags(os.args)
-        state.config = load_user_config()
-        state.cache_to_disk = true
-    }
-
-    // load track if input file was provided
-    if flags.input_file == "" {
-        state.is_track_open = false
-    } else {
-        // if launched from another directory we need to join the path given from main 
-        // since we are currently in the directory of the executable
-        file := filepath.join({dir, flags.input_file})
-        ok: bool
-        state.track, ok = track_load_from_file(file)
-        if ok {
-            // allocate for the draw track
-            // the setup needs to come after we setup the map screen
-            state.is_track_open = true
-            state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
-            state.draw_track.points = make([]rl.Vector2, len(state.track.points))
-            state.draw_track.color = ORANGE
-        } else {
-            state.is_track_open = false
-        }
-    }
-
-    // initialize tile fetching
-    api_key := strings.clone_to_cstring(flags.api_key)
-    layer_style := flags.layer_style
-    if layer_style != .Osm {
-        if api_key != "" {
-            // api key was provided
-            state.config.api_keys[layer_style] = api_key
-        } else if state.config.api_keys[layer_style] == "" {
-            // no api key provided in config or args
-            layer_style = .Osm
-        }
-    }
-    init_tile_fetching(flags.layer_style, 
-        state.config.api_keys[flags.layer_style], flags.offline)
+init :: proc() {
 
     // Raylib setup
     rl.SetTraceLogLevel(.ERROR)
@@ -545,7 +423,6 @@ init :: proc(dir := "") {
     rl.SetTargetFPS(FPS) // idk
     when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
 
-    rlgl.SetLineWidth(TRACK_LINE_THICK)
     rlgl.EnableSmoothLines()
 
     g_font = rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 96, nil, 0)
@@ -562,8 +439,8 @@ init :: proc(dir := "") {
     } else {
         state.map_screen = Map_Screen {
             center = coord_to_mercator({23.5, 0}, 3),
-            width = WINDOW_WIDTH,
-            height = WINDOW_HEIGHT,
+            width = rl.GetScreenWidth(),
+            height = rl.GetScreenHeight(),
             zoom = 3,
             scale = 1.0,
         }
@@ -578,5 +455,4 @@ init :: proc(dir := "") {
         tile.zoom -= 1
         new_tile(&state.cache, tile)
     }
-
 }

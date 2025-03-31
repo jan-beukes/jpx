@@ -2,12 +2,16 @@
 package jpx
 
 // Desktop implementation of the platform specific code
-// currently requests and file dialog
 
 import "base:runtime"
 import "core:path/filepath"
+import "core:strings"
+import "core:strconv"
+import "core:time/datetime"
+import "core:time/timezone"
 import "core:fmt"
 import "core:os"
+import "core:encoding/ini"
 import "core:thread"
 import "core:sync"
 import "core:container/queue"
@@ -52,16 +56,145 @@ Thread_Context :: struct {
 @(private="file") thread_ctx: Thread_Context
 @(private="file") is_offline: bool
 
-init_platform_requests :: proc(offline: bool) {
+// the desktop specific initialization
+init_platform :: proc(dir: string) {
+    // flags and config file
+    flags := parse_flags(os.args)
+    state.config = load_user_config()
+    state.cache_to_disk = true
+
+    // load track if input file was provided
+    if flags.input_file == "" {
+        state.is_track_open = false
+    } else {
+        // if launched from another directory we need to join the path given from main 
+        // since we are currently in the directory of the executable
+        file := filepath.join({dir, flags.input_file})
+        ok: bool
+        state.track, ok = track_load_from_file(file)
+        if ok {
+            // allocate for the draw track
+            // the setup needs to come after we setup the map screen
+            state.is_track_open = true
+            state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
+            state.draw_track.points = make([]rl.Vector2, len(state.track.points))
+            state.draw_track.color = ORANGE
+        } else {
+            state.is_track_open = false
+        }
+    }
+
+    // api key config
+    api_key := strings.clone_to_cstring(flags.api_key)
+    layer_style := flags.layer_style
+    if layer_style != .Osm {
+        if api_key != "" {
+            // api key was provided
+            state.config.api_keys[layer_style] = api_key
+        } else if state.config.api_keys[layer_style] == "" {
+            // no api key provided in config or args
+            layer_style = .Osm
+        }
+    }
+
+    init_tile_fetching(flags.layer_style, 
+        state.config.api_keys[flags.layer_style], flags.offline)
     request_context = context
-    is_offline = offline
+    is_offline = flags.offline
     req_state.m_handle = curl.multi_init()
     thread.run(io_thread_proc)
 }
 
-deinit_platform_requests :: proc() {
+deinit_platform :: proc() {
     curl.multi_cleanup(req_state.m_handle)
 }
+
+// Desktop flags/config
+
+parse_flags :: proc(argv: []string) -> Flags {
+    if len(argv) < 2 do return {}
+
+    flags: Flags
+    for i := 1; i < len(argv); i += 1 {
+        is_last := i == len(argv) - 1
+
+        // flags that expect a value can't be the last arg
+        if strings.compare(argv[i], "-s") == 0 {
+            if is_last {
+                fmt.eprint(USAGE); os.exit(1)
+            }
+            i += 1
+            num, ok := strconv.parse_int(argv[i])
+            if !ok || num >= len(Layer_Style) {
+                fmt.eprint(USAGE)
+                os.exit(1)
+            }
+            flags.layer_style = Layer_Style(num)
+        } else if strings.compare(argv[i], "-k") == 0 {
+            if is_last {
+                fmt.eprint(USAGE); os.exit(1)
+            }
+            i += 1
+            flags.api_key = argv[i]
+        // file must always be first if it is provided
+        } else if strings.compare(argv[i], "--offline") == 0 {
+            flags.offline = true
+        } else if i == 1 {
+            flags.input_file = argv[i]
+        } else {
+            fmt.eprint(USAGE)
+            os.exit(1)
+        }
+    }
+    return flags
+}
+
+load_user_config :: proc() -> (config: Config) {
+    config_map, _, ok := ini.load_map_from_path("jpx.ini", context.allocator)
+    // no config
+    if !ok {
+        return
+    }
+    // API Keys
+    if ("Keys" in config_map) {
+        api_keys := config_map["Keys"]
+        if "Jawg" in api_keys {
+            config.api_keys[.Jawg] = strings.clone_to_cstring(api_keys["Jawg"])
+        }
+        if "Mapbox" in api_keys {
+            key := strings.clone_to_cstring(api_keys["Mapbox"])
+            config.api_keys[.Mapbox_Outdoors] = key
+            config.api_keys[.Mapbox_Satelite] = key
+        }
+    }
+
+    return
+}
+
+_track_load_from_file :: proc(file: string, allocator := context.allocator) -> (track: Gps_Track, ok: bool) {
+    context.allocator = allocator
+
+    ext := filepath.ext(file)
+    if strings.compare(ext, ".gpx") == 0 {
+        track, ok = track_load_from_gpx(file)
+    } else {
+        log.errorf("Could not load %s\nSupported formats: %s", file, SUPPORTED_FORMATS)
+        track = {}
+        ok = false
+    }
+
+    return
+}
+
+// need to seperate since timezone isn't implemented on web
+date_time_to_local :: proc(date_time: ^datetime.DateTime) {
+    tz, _ := timezone.region_load("local")
+    date_time^, _ = timezone.datetime_to_tz(date_time^, tz)
+}
+
+/**********
+* REQUEST
+***********/
 
 SEP :: filepath.SEPARATOR_STRING
 get_tile_file :: proc(tile: Tile, style_name: cstring, ext: cstring,

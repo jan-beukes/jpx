@@ -3,11 +3,8 @@ package jpx
 // Loading and handling of a gps tracks / activities
 
 import "base:runtime"
-import "core:path/filepath"
-import "core:mem"
 import "core:math"
 import "core:time/datetime"
-import "core:time/timezone"
 import "core:time"
 import "core:log"
 import "core:strconv"
@@ -15,7 +12,6 @@ import "core:strings"
 import "core:fmt"
 
 import "core:encoding/xml"
-
 
 SUPPORTED_FORMATS :: "gpx"
 
@@ -85,18 +81,7 @@ activity_types := [Activity_Type]string {
 }
 
 track_load_from_file :: proc(file: string, allocator := context.allocator) -> (track: Gps_Track, ok: bool) {
-    context.allocator = allocator
-
-    ext := filepath.ext(file)
-    if strings.compare(ext, ".gpx") == 0 {
-        track, ok = track_load_from_gpx(file)
-    } else {
-        log.errorf("Could not load %s\nSupported formats: %s", file, SUPPORTED_FORMATS)
-        track = {}
-        ok = false
-    }
-
-    return
+    return _track_load_from_file(file, allocator)
 }
 
 /********************
@@ -148,10 +133,10 @@ track_unload :: proc(track: ^Gps_Track) {
     if track.name != "" {
         delete(track.name, track.allocator)
     }
-    if track.metadata.date_time != nil{
-        tz := track.metadata.date_time.(DateTime).tz
-        timezone.region_destroy(tz, track.allocator)
-    }
+    //if track.metadata.date_time != nil{
+    //    tz := track.metadata.date_time.(DateTime).tz
+    //    timezone.region_destroy(tz, track.allocator)
+    //}
     delete(track.points)
 }
 
@@ -171,7 +156,6 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
             track.name = strings.clone_to_cstring(val)
         } else if strings.compare(ident, "type") == 0 {
             val := elem.value[0].(string)
-            found: bool
             for activity, i in activity_types {
                 if strings.compare(activity, val) == 0 {
                     track.type = i
@@ -187,7 +171,7 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
 
             point_count := len(elem.value)
             loaded_ext: Extensions
-            for val, i in elem.value {
+            for val in elem.value {
                 id := val.(xml.Element_ID)
 
                 // load the point
@@ -197,9 +181,7 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
                 // set datetime in the metadata if we have times from points
                 if track.metadata.date_time == nil && track_point.time != nil {
                     track.metadata.date_time = track_point.time.(DateTime)
-                    tz := timezone.region_load("local") or_continue
-                    track.metadata.date_time = timezone.datetime_to_tz(
-                        track.metadata.date_time.(DateTime), tz) or_continue
+                    date_time_to_local(&track.metadata.date_time.(DateTime))
                 }
 
                 if track_point.elevation > max_ele do max_ele = track_point.elevation
@@ -283,7 +265,7 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
             elev_diff := ema_elev - prev.elevation
             dist := math.sqrt(elev_diff * elev_diff + flat_dist * flat_dist) // account for elevation diff
             track.points[i].distance = prev.distance + dist
-            
+
             if point.time != nil  {
                 start, _ := time.datetime_to_time(prev.time.(DateTime))
                 end, _ := time.datetime_to_time(point.time.(DateTime))
@@ -379,26 +361,21 @@ track_get_metadata :: proc(elements: [dynamic]xml.Element, id: xml.Element_ID) -
     metadata_elem := elements[id]
     metadata: Metadata
     for value in metadata_elem.value {
-        id, ok := value.(xml.Element_ID)
-        if !ok do continue
+        id := value.(xml.Element_ID)
 
         element := elements[id]
         ident := element.ident
 
         if strings.compare(ident, "link") == 0 {
-            text_id, ok := element.value[0].(xml.Element_ID)
-            if !ok do continue
+            text_id := element.value[0].(xml.Element_ID)
             text: string
-            text, ok = elements[text_id].value[0].(string)
-            if ok {
-                metadata.text = strings.clone_to_cstring(text)
-            }
-        } else if strings.compare(ident, "time") == 0 {
-            date_time_str, ok := element.value[0].(string)
-            metadata.date_time = parse_date_time(date_time_str) or_continue
+            text = elements[text_id].value[0].(string)
+            metadata.text = strings.clone_to_cstring(text)
 
-            tz := timezone.region_load("local") or_continue
-            metadata.date_time = timezone.datetime_to_tz(metadata.date_time.(DateTime), tz) or_continue
+        } else if strings.compare(ident, "time") == 0 {
+            date_time_str := element.value[0].(string)
+            metadata.date_time = parse_date_time(date_time_str) or_continue
+            date_time_to_local(&metadata.date_time.(DateTime))
         }
     }
 
