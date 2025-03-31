@@ -24,7 +24,7 @@ cp src/main_web/jpx.js $OUT_DIR
 
 files="$OUT_DIR/jpx.wasm.o ${ODIN_PATH}/vendor/raylib/wasm/libraylib.a"
 
-flags="-sUSE_GLFW=3 -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sASSERTIONS --shell-file src/main_web/index_template.html"
+flags="-sUSE_GLFW=3 -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sASSERTIONS -sALLOW_MEMORY_GROWTH --shell-file src/main_web/index_template.html"
 
 # For debugging: Add `-g` to `emcc`
 emcc -o $OUT_DIR/index.html $files $flags

@@ -87,7 +87,10 @@ init_platform :: proc(dir: string) {
         // if launched from another directory we need to join the path given from main 
         // since we are currently in the directory of the executable
         file := filepath.join({dir, flags.input_file})
-        open_new_track(file)
+        track, ok := track_load_from_file(file)
+        if ok {
+            open_new_track(track)
+        }
     }
 
     // platform state
@@ -163,6 +166,8 @@ load_user_config :: proc() -> (config: Config) {
     return
 }
 
+// TODO: Can I make this non blocking maybe?
+// or at least tell the window that there is response
 open_file_dialog :: proc() -> string {
     file := tinyfd.openFileDialog("Open file", nil, 0, nil, nil, 0)
     return string(file)
@@ -173,7 +178,8 @@ _track_load_from_file :: proc(file: string, allocator := context.allocator) -> (
 
     ext := filepath.ext(file)
     if strings.compare(ext, ".gpx") == 0 {
-        track, ok = track_load_from_gpx(file)
+        file_data := os.read_entire_file(file) or_return
+        track, ok = track_load_from_gpx(file_data)
     } else {
         log.errorf("Could not load %s\nSupported formats: %s", file, SUPPORTED_FORMATS)
         track = {}

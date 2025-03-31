@@ -1,4 +1,3 @@
-
 var odinInterface = new odin.WasmMemoryInterface();
 odinInterface.setIntSize(4);
 var odinImports = odin.setupDefaultImports(odinInterface);
@@ -10,8 +9,8 @@ function fetchTile(urlPtr, urlLen, tileX, tileY, tileZ) {
         const byteArray = new Uint8Array(buffer);
         // need to move the data to wasm mem
         const ptr = exports.malloc(byteArray.length);
-        const dst = new Uint8Array(odinInterface.memory.buffer, ptr, byteArray.length);
-        dst.set(byteArray);
+        const dstArray = new Uint8Array(odinInterface.memory.buffer, ptr, byteArray.length);
+        dstArray.set(byteArray);
 
         exports.fetch_callback(ptr, byteArray.length, tileX, tileY, tileZ);
 
@@ -20,11 +19,57 @@ function fetchTile(urlPtr, urlLen, tileX, tileY, tileZ) {
         .catch(error => console.error("Fetch failed:", error));
 }
 
+function dropEvent(event) {
+    var canvas = document.getElementById("canvas");
+    event.preventDefault();
+    event.stopPropagation();
+    canvas.classList.remove('drag-over');
+    console.log('Drop Event');
+
+    const files = event.dataTransfer.files;
+
+    if (files.length > 0) {
+        const file = files[0];
+        const reader = new FileReader();
+
+        // on successful read
+        reader.onload = function(e) {
+            const fileData = e.target.result; // ArrayBuffer
+            const byteArray = new Uint8Array(fileData);
+
+            const exports = odinInterface.exports;
+            console.log(byteArray.length);
+            // alloc in wasm
+            const ptr = exports.malloc(byteArray.length);
+            const dstArray = new Uint8Array(odinInterface.memory.buffer, ptr, byteArray.length);
+            dstArray.set(byteArray);
+
+            // call wasm to handle opened file
+            exports.track_load_callback(ptr, dstArray.length)
+        };
+
+        reader.onerror = function(e) {
+            console.error("Error reading file:", e);
+        };
+
+        // read the file
+        const fileName = file.name.toLowerCase();
+        if (fileName.endsWith(".gpx")) {
+            reader.readAsArrayBuffer(file)
+        } else {
+            console.error("Unsupported file type:", fileName);
+        }
+    }
+}
+
 // The Module is used as configuration for emscripten.
 var Module = {
     // This is called by emscripten when it starts up.
     instantiateWasm: (imports, successCallback) => {
+
+        // extra imports
         imports.env.fetchTile = fetchTile;
+
         const newImports = {
             ...odinImports,
             ...imports
@@ -43,33 +88,49 @@ var Module = {
     onRuntimeInitialized: () => {
         var e = wasmExports;
 
-        // Calls any procedure marked with @init
         e._start();
-
-        // See source/main_web/main_web.odin for main_start,
-        // main_update and main_end.
         e.main_start();
 
         function send_resize() {
-            var canvas = document.getElementById('canvas');
+            var canvas = document.getElementById("canvas");
             e.web_window_size_changed(canvas.width, canvas.height);
         }
 
-        window.addEventListener('resize', function(event) {
+        // resize callback
+        window.addEventListener("resize", function(event) {
             send_resize();
         }, true);
 
-        // This can probably be done better: Ideally we'd feed the
-        // initial size to `main_start`. But there seems to be a
-        // race condition. `canvas` doesn't have it's correct size yet.
         send_resize();
+
+        var canvas = document.getElementById("canvas");
+
+        //--- Drag and drop events---
+        canvas.addEventListener("dragenter", function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            canvas.classList.add("drag-over"); // visual stuff
+        })
+
+        canvas.addEventListener("dragover", function(event) {
+            event.preventDefault(); // for drop event to fire
+            event.stopPropagation();
+        })
+
+        canvas.addEventListener('dragleave', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            canvas.classList.remove('drag-over');
+            console.log('Drag Leave');
+        });
+
+        canvas.addEventListener("drop", dropEvent)
 
         // Runs the "main loop".
         function do_main_update() {
             if (!e.main_update()) {
                 e.main_end();
 
-                // Calls procedures marked with @fini
                 e._end();
                 return;
             }

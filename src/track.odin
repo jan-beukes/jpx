@@ -88,11 +88,11 @@ track_load_from_file :: proc(file: string, allocator := context.allocator) -> (t
 * Gpx Parsing
 *********************/
 
-track_load_from_gpx :: proc(file: string) -> (track: Gps_Track, ok: bool) {
+track_load_from_gpx :: proc(file_data: []u8) -> (track: Gps_Track, ok: bool) {
     ok = true
-    doc, err := xml.load_from_file(file)
+    doc, err := xml.parse_bytes(file_data)
     if err != nil {
-        log.errorf("Could not load %s", file)
+        log.errorf("Could not load gpx file")
         return {}, false
     }
     defer xml.destroy(doc)

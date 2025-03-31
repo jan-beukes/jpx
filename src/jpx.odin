@@ -12,15 +12,14 @@ import rlgl "vendor:raylib/rlgl"
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
 WINDOW_MIN_SIZE :: 300
-FPS :: 120
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
 
 // Movement
 ZOOM_STEP :: 0.4
-ZOOM_FRAMES :: 10
-MOVE_FRICTION :: 2400
+ZOOM_TIME :: 0.1
+MOVE_FRICTION :: 3200
 MAX_SPEED :: 1600
 
 // Track
@@ -154,7 +153,8 @@ handle_ui :: proc() {
     rect = rl.Rectangle{0, 0, width, height}
     if gui_button(rect, "Open file", &state.ui_is_focused) {
         file := open_file_dialog()
-        if file != "" do open_new_track(file)
+        track, ok := track_load_from_file(file)
+        if file != "" do open_new_track(track)
     }
 
     when ODIN_DEBUG do gui_debug(0, height + height*0.5)
@@ -222,31 +222,28 @@ center_map_to_track :: proc() {
     state.map_screen.height = window_height
 }
 
-open_new_track :: proc(file: string) {
+open_new_track :: proc(track: Gps_Track) {
     // free all the previous track data
     if state.is_track_open {
         track_unload(&state.track)
         delete(state.draw_track.points)
         delete(state.draw_track.coords)
     }
-    ok: bool
-    state.track, ok = track_load_from_file(file)
-    if ok {
-        // allocate for the draw track
-        // the setup needs to come after we setup the map screen
-        state.is_track_open = true
-        state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
-        state.draw_track.points = make([]rl.Vector2, len(state.track.points))
-        state.draw_track.color = ORANGE
 
-        center_map_to_track()
-        state.draw_track.zoom = state.map_screen.zoom
-        for i := 0; i < len(state.track.points); i += 1 {
-            state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
-                state.draw_track.zoom)
-        }
-    } else {
-        state.is_track_open = false
+    state.track = track
+
+    // allocate for the draw track
+    // the setup needs to come after we setup the map screen
+    state.is_track_open = true
+    state.draw_track.coords = make([]Mercator_Coord, len(state.track.points))
+    state.draw_track.points = make([]rl.Vector2, len(state.track.points))
+    state.draw_track.color = ORANGE
+
+    center_map_to_track()
+    state.draw_track.zoom = state.map_screen.zoom
+    for i := 0; i < len(state.track.points); i += 1 {
+        state.draw_track.coords[i] = coord_to_mercator(state.track.points[i].coord,
+            state.draw_track.zoom)
     }
 }
 
@@ -279,6 +276,7 @@ zoom_map :: proc(step: f32, window_width, window_height: i32) {
 handle_input :: proc() {
 
     dt := rl.GetFrameTime()
+    fps := rl.GetFPS()
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
     if rl.IsWindowResized() {
         state.map_screen.width = i32(f32(window_width) / state.map_screen.scale)
@@ -302,26 +300,29 @@ handle_input :: proc() {
 
     // don't allow panning and zooming when ui is focused
     if !state.ui_is_focused {
+
         // Zooming
+        zoom_frames := i32(f32(fps) * ZOOM_TIME)
         if scroll != 0.0 {
             move_state.mouse_zoom = true
-            move_state.zoom_frame = ZOOM_FRAMES
+            move_state.zoom_frame = zoom_frames
             move_state.zoom_step = scroll > 0.0 ? ZOOM_STEP : -ZOOM_STEP
         } else if rl.IsKeyPressed(.EQUAL) {
             move_state.mouse_zoom = false
-            move_state.zoom_frame = 2 * ZOOM_FRAMES
+            move_state.zoom_frame = 2 * zoom_frames
             move_state.zoom_step = 2 * ZOOM_STEP
         } else if rl.IsKeyPressed(.MINUS) {
             move_state.mouse_zoom = false
-            move_state.zoom_frame = 2 * ZOOM_FRAMES
+            move_state.zoom_frame = 2 * zoom_frames
             move_state.zoom_step = -2 * ZOOM_STEP
         }
 
+        // zoom animation takes zoom_frames to complete
         if move_state.zoom_frame > 0 {
             prev_zoom := state.map_screen.zoom
             prev_mouse_map_pos := screen_to_map(state.map_screen, mouse_pos)
 
-            zoom_map(move_state.zoom_step / ZOOM_FRAMES, window_width, window_height)
+            zoom_map(move_state.zoom_step / f32(zoom_frames), window_width, window_height)
             move_state.zoom_frame -= 1
 
             if move_state.mouse_zoom {
@@ -386,7 +387,6 @@ handle_input :: proc() {
     border_bottom := tile_size * f64(n)
     state.map_screen.center.y = clamp(state.map_screen.center.y, border_top, border_bottom)
 
-
     // Keybinds
     if rl.IsKeyPressed(.F) {
         if rl.IsWindowMaximized() {
@@ -400,10 +400,26 @@ handle_input :: proc() {
             center_map_to_track()
         }
     }
-
     if rl.IsKeyPressed(.O) {
         file := open_file_dialog()
-        if file != "" do open_new_track(file)
+        track, ok := track_load_from_file(file)
+        if ok {
+            open_new_track(track)
+        }
+    }
+
+    // since js file reading is async we handle it seperately
+    when ODIN_OS != .JS {
+        if rl.IsFileDropped() {
+            dropped_files := rl.LoadDroppedFiles()
+            files := dropped_files.paths[:dropped_files.count]
+            file := files[0] // only load one file
+            track, ok := track_load_from_file(string(file))
+            if ok {
+                open_new_track(track)
+            }
+            rl.UnloadDroppedFiles(dropped_files)
+        }
     }
 }
 
@@ -466,13 +482,12 @@ init :: proc() {
 
     // Raylib setup
     rl.SetTraceLogLevel(.ERROR)
-    rl.SetConfigFlags({.WINDOW_RESIZABLE})
+    rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
     rl.SetWindowIcon(rl.LoadImageFromMemory(".png", raw_data(ICON_DATA), i32(len(ICON_DATA))))
-    rl.SetTargetFPS(FPS) // idk
     when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
-
+    rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
     rlgl.EnableSmoothLines()
 
     g_font = rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 96, nil, 0)
