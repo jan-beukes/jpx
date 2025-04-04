@@ -6,12 +6,14 @@
 - [x] Cache eviction
 - [x] Cache to disk for native and read async
 - [x] GPX parsing and rendering
-- [ ] WEB
+- [x] WEB
 - [ ] height and mass in config to calculate calories
 - [ ] store loaded gpx files in a histroy that is accessible from UI
 - [ ] fit file format...
+- [ ] create and export tracks
 
 # GUI
-- [ ] GUI for copyright and disk cache, 
-- [ ] gpx loading
+- [x] GUI for copyright
+- [x] gpx loading
+- [ ] GUI for entering api keys
 - [ ] GUI for stats, plots

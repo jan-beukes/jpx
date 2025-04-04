@@ -2,12 +2,18 @@ package jpx
 
 import "core:math"
 import "core:time"
+import "core:math/ease"
 import "core:time/datetime"
+import sa "core:container/small_array"
 import rl "vendor:raylib"
 
 BORDER_THICK :: 1.2
 PADDING_FACTOR :: 0.2
 FADE_AMMOUNT :: 0.9
+
+PANEL_ANIM_TIME :: 0.2
+PANEL_OFFSET :: 20
+PANEL_HANDLE_SCALE :: 0.1
 
 DARK_BLUE :: rl.Color{0x0d, 0x2b, 0x45, 0xff}
 BLUE :: rl.Color{0x20, 0x3c, 0x56, 0xff}
@@ -40,8 +46,23 @@ COLORS :: Gui_Colors {
     select = PEACH,
 }
 
+Panel_Location :: enum {
+    Top,
+    Bottom,
+    Left,
+    Right,
+}
+
+Gui_Panel :: struct {
+    rect: rl.Rectangle,
+    is_open: bool,
+    anim_frame: i32,
+    location: Panel_Location,
+}
+
 g_font: rl.Font
 gui_mouse_cursor: rl.MouseCursor
+
 
 draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
@@ -60,7 +81,7 @@ gui_debug :: proc(x, y: f32) {
         f32(WINDOW_HEIGHT) * 0.35,
         f32(WINDOW_HEIGHT) * 0.9,
     }
-    rl.DrawRectangleRounded({-20.0, y, overlay.x, overlay.y}, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    rl.DrawRectangleRounded({-PANEL_OFFSET, y, overlay.x, overlay.y}, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
 
     padding := overlay.y * 0.02
     font_size: f32 = WINDOW_HEIGHT / 40.0
@@ -133,6 +154,99 @@ gui_debug :: proc(x, y: f32) {
         draw_text(text, cursor, font_size, WHITE)
     }
 
+}
+
+// panel with all the plots
+gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
+    rect := panel.rect
+    mouse_pos := rl.GetMousePosition()
+
+    if panel.is_open && rl.CheckCollisionPointRec(mouse_pos, rect) {
+        ui_focused^ = true
+    }
+
+    // TODO: check for click on the panel handle and change panel state
+
+    // only draw the handle and then return
+    if !panel.is_open && panel.anim_frame == 0 {
+    }
+
+    // draw the panel
+    frame_count := f32(rl.GetFPS()) * PANEL_ANIM_TIME
+    ease_func := panel.is_open ? ease.elastic_in : ease.elastic_out
+    t: f32 = ease_func(f32(panel.anim_frame) / f32(frame_count))
+
+    // add offset and calculate rect from animation frame
+    draw_rect := rect
+    switch panel.location {
+    case .Top: {
+        dest_y := panel.is_open ? rect.y - PANEL_OFFSET : rect.y - rect.height
+        start_y := panel.is_open ? rect.y - rect.height : rect.y - PANEL_OFFSET
+        draw_rect.y = math.lerp(start_y, dest_y, t)
+    }
+    case .Left: {
+        dest_x := panel.is_open ? rect.x - PANEL_OFFSET : rect.x - rect.width
+        start_x := panel.is_open ? rect.x - rect.width : rect.x - PANEL_OFFSET
+        draw_rect.x = math.lerp(start_x, dest_x, t)
+    }
+    case .Right: {
+        dest_x := panel.is_open ? rect.x + PANEL_OFFSET : rect.x + rect.width
+        start_x := panel.is_open ? rect.x + rect.width : rect.x + PANEL_OFFSET
+        draw_rect.x = math.lerp(start_x, dest_x, t)
+    }
+    case .Bottom: {
+        dest_y := panel.is_open ? rect.y + PANEL_OFFSET : rect.y + rect.height
+        start_y := panel.is_open ? rect.y + rect.height : rect.y + PANEL_OFFSET
+        draw_rect.y = math.lerp(start_y, dest_y, t)
+    }
+    }
+    rl.DrawRectangleRounded(draw_rect, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+
+}
+
+gui_panel_stats :: proc(panel: Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
+
+}
+
+_gui_panel :: proc(panel: Gui_Panel) {
+
+}
+
+_gui_panel_handle :: proc(panel: Gui_Panel) {
+    rect := panel.rect
+    handle_rect: rl.Rectangle
+    switch panel.location {
+    case .Top: {
+        handle_rect.width = rect.width * PANEL_HANDLE_SCALE
+        handle_rect.height = handle_rect.width * 0.5
+        handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
+        // need to account for panel being offset
+        handle_rect.y = rect.y - PANEL_OFFSET
+    }
+    case .Bottom: {
+        handle_rect.width = rect.width * PANEL_HANDLE_SCALE
+        handle_rect.height = handle_rect.width * 0.5
+        handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
+        // need to account for panel being offset
+        handle_rect.y = rect.y + PANEL_OFFSET
+    }
+    case .Right: {
+        handle_rect.height = rect.height * PANEL_HANDLE_SCALE
+        handle_rect.width = handle_rect.height * 0.5
+        handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
+        // need to account for panel being offset
+        handle_rect.x = rect.x + PANEL_OFFSET
+    }
+    case .Left: {
+        handle_rect.height = rect.height * PANEL_HANDLE_SCALE
+        handle_rect.width = handle_rect.height * 0.5
+        handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
+        // need to account for panel being offset
+        handle_rect.x = rect.x + PANEL_OFFSET
+    }
+    }
+
+    rl.DrawRectangleRec(handle_rect, ORANGE)
 }
 
 gui_button :: proc(rect: rl.Rectangle, text: cstring, ui_focused: ^bool) -> bool {

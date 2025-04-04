@@ -86,7 +86,7 @@ init_platform :: proc(dir: string) {
     } else {
         // if launched from another directory we need to join the path given from main 
         // since we are currently in the directory of the executable
-        file := filepath.join({dir, flags.input_file})
+        file := !filepath.is_abs(flags.input_file) ? filepath.join({dir, flags.input_file}) : flags.input_file
         track, ok := track_load_from_file(file)
         if ok {
             open_new_track(track)

@@ -278,11 +278,15 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
                         paused_time += secs
                     }
                 }
-            } else {
-                // if we don't have time just use the standart 1 second delta
-                // This could maybe cause a speed jump when gps is paused but better than nothing
-                track.points[i].speed = dist / 1.0
-            }
+            } 
+            // NOTE: I don't think there is any way to do speed/time consistentlt without time
+            // I thought points had a standard 1 second delta but it doesn't seem consistent
+
+            //else {
+            //    // if we don't have time just use the standart 1 second delta
+            //    // This could maybe cause a speed jump when gps is paused but better than nothing
+            //    track.points[i].speed = dist / 1.0
+            //}
         }
         // first make sure that there is a speed value
         ema_speed := alpha * track.points[i].speed + (1 - alpha) * prev.speed
@@ -302,12 +306,14 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
     if last.distance > 0.0 {
         track.total_distance = last.distance
     }
+
     if first.time != nil && last.time != nil {
         first_time, _ := time.datetime_to_time(first.time.(DateTime))
         last_time, _ := time.datetime_to_time(last.time.(DateTime))
         duration := time.diff(first_time, last_time)
 
-        // NOTE: removing paused time, could add total and elapsed to track
+        // NOTE: removes paused time
+        // could add total and elapsed seperate to track
         secs := time.duration_seconds(duration)
         secs -= paused_time
         track.duration = time.Duration(secs * f64(time.Second))

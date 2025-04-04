@@ -185,18 +185,26 @@ switch_tile_layer :: proc(style: Layer_Style) {
     req_state.tile_layer = get_tile_layer(style, state.config.api_keys[style])
     tile_size := req_state.tile_layer.tile_size
 
-    // This is pretty sketchy but we need to keep the relative scale the same when switching 
-    // tile layers
+    // This is pretty sketchy but we need to keep the relative scale the same when switching tile layers
     if prev_tile_size != tile_size {
         state.map_screen.center /= prev_tile_size
         state.map_screen.center *= tile_size
         scale_factor := prev_tile_size / tile_size
 
-        step: f32 = (MAX_SCALE - MIN_SCALE)
-        if scale_factor < 1.0 {
-            step = -step
+        if state.map_screen.zoom <= req_state.tile_layer.max_zoom {
+            step: f32 = (MAX_SCALE - MIN_SCALE)
+            if scale_factor < 1.0 {
+                step = -step
+            }
+            zoom_map(step, rl.GetScreenWidth(), rl.GetScreenHeight())
+        } else {
+            // when current zoom is greater than the zoom limit of the new tile layer
+            max_zoom := req_state.tile_layer.max_zoom
+            state.map_screen.center = scale_mercator(state.map_screen.center, 
+                state.map_screen.zoom, max_zoom)
+            state.map_screen.zoom = max_zoom
+
         }
-        zoom_map(step, rl.GetScreenWidth(), rl.GetScreenHeight())
     }
 
     // recalc track
@@ -488,7 +496,7 @@ init :: proc() {
 
     // Raylib setup
     rl.SetTraceLogLevel(.ERROR)
-    rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
+    rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
     rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
     rl.SetWindowIcon(rl.LoadImageFromMemory(".png", raw_data(ICON_DATA), i32(len(ICON_DATA))))
