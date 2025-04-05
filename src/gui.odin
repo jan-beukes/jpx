@@ -2,18 +2,18 @@ package jpx
 
 import "core:math"
 import "core:time"
+import "core:log"
 import "core:math/ease"
 import "core:time/datetime"
-import sa "core:container/small_array"
 import rl "vendor:raylib"
 
 BORDER_THICK :: 1.2
 PADDING_FACTOR :: 0.2
 FADE_AMMOUNT :: 0.9
 
-PANEL_ANIM_TIME :: 0.2
+PANEL_ANIM_TIME :: 0.3
 PANEL_OFFSET :: 20
-PANEL_HANDLE_SCALE :: 0.1
+PANEL_HANDLE_SCALE :: 0.5
 
 DARK_BLUE :: rl.Color{0x0d, 0x2b, 0x45, 0xff}
 BLUE :: rl.Color{0x20, 0x3c, 0x56, 0xff}
@@ -47,10 +47,10 @@ COLORS :: Gui_Colors {
 }
 
 Panel_Location :: enum {
-    Top,
-    Bottom,
     Left,
+    Top,
     Right,
+    Bottom,
 }
 
 Gui_Panel :: struct {
@@ -62,7 +62,6 @@ Gui_Panel :: struct {
 
 g_font: rl.Font
 gui_mouse_cursor: rl.MouseCursor
-
 
 draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
@@ -156,9 +155,11 @@ gui_debug :: proc(x, y: f32) {
 
 }
 
+//---Panel stuff---
+
 // panel with all the plots
 gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
-    rect := panel.rect
+    rect, handle_rect := get_panel_rects(panel^)
     mouse_pos := rl.GetMousePosition()
 
     if panel.is_open && rl.CheckCollisionPointRec(mouse_pos, rect) {
@@ -166,87 +167,120 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     }
 
     // TODO: check for click on the panel handle and change panel state
+    if rl.CheckCollisionPointRec(mouse_pos, handle_rect) {
+        gui_mouse_cursor = .POINTING_HAND
+        ui_focused^ = true
+        if rl.IsMouseButtonPressed(.LEFT) {
+            panel.is_open = !panel.is_open
+            panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
+        }
+    }
 
-    // only draw the handle and then return
+    // draw the rect and handle
+    rl.DrawRectangleRounded(rect, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    draw_panel_handle(handle_rect, panel^)
+
     if !panel.is_open && panel.anim_frame == 0 {
+        return
+    } else if panel.anim_frame > 0 {
+        panel.anim_frame -= 1
     }
 
-    // draw the panel
-    frame_count := f32(rl.GetFPS()) * PANEL_ANIM_TIME
-    ease_func := panel.is_open ? ease.elastic_in : ease.elastic_out
-    t: f32 = ease_func(f32(panel.anim_frame) / f32(frame_count))
+    // since rect is used to calculate the content's positions and sizes when
+    // remove the hidden parts of the rect
+    if panel.location == .Top || panel.location == .Bottom {
+        rect.height -= PANEL_OFFSET
+    } else {
+        rect.width -= PANEL_OFFSET
+    }
 
-    // add offset and calculate rect from animation frame
-    draw_rect := rect
-    switch panel.location {
-    case .Top: {
-        dest_y := panel.is_open ? rect.y - PANEL_OFFSET : rect.y - rect.height
-        start_y := panel.is_open ? rect.y - rect.height : rect.y - PANEL_OFFSET
-        draw_rect.y = math.lerp(start_y, dest_y, t)
-    }
-    case .Left: {
-        dest_x := panel.is_open ? rect.x - PANEL_OFFSET : rect.x - rect.width
-        start_x := panel.is_open ? rect.x - rect.width : rect.x - PANEL_OFFSET
-        draw_rect.x = math.lerp(start_x, dest_x, t)
-    }
-    case .Right: {
-        dest_x := panel.is_open ? rect.x + PANEL_OFFSET : rect.x + rect.width
-        start_x := panel.is_open ? rect.x + rect.width : rect.x + PANEL_OFFSET
-        draw_rect.x = math.lerp(start_x, dest_x, t)
-    }
-    case .Bottom: {
-        dest_y := panel.is_open ? rect.y + PANEL_OFFSET : rect.y + rect.height
-        start_y := panel.is_open ? rect.y + rect.height : rect.y + PANEL_OFFSET
-        draw_rect.y = math.lerp(start_y, dest_y, t)
-    }
-    }
-    rl.DrawRectangleRounded(draw_rect, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
 
 }
 
 gui_panel_stats :: proc(panel: Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
-
 }
 
-_gui_panel :: proc(panel: Gui_Panel) {
-
+draw_panel_handle :: proc(rect: rl.Rectangle, panel: Gui_Panel) {
+    rl.DrawRectangleRec(rect, rl.Fade(BLUE, 0.75 * FADE_AMMOUNT))
+    center := rl.Vector2 {rect.x + (rect.width*0.5), rect.y + (rect.height*0.5)}
+    size := min(rect.width, rect.height) * 0.3
+    rotation := panel.is_open ? f32(panel.location) * -90.0 : f32(panel.location) * 90.0
+    rl.DrawPoly(center, 3, size, rotation, PEACH)
 }
 
-_gui_panel_handle :: proc(panel: Gui_Panel) {
+// This function uses the panel's location and state (anim_frame and is_open) to calculate the
+// current rect for the panel and it's handle
+get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
+    window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
     rect := panel.rect
+    // get the default rect
+    switch panel.location {
+    case .Top:
+        if rect.x == 0 do rect.x = (f32(window_width) - rect.width) * 0.5
+        rect.y = -PANEL_OFFSET
+    case .Bottom:
+        if rect.x == 0 do rect.x = (f32(window_width) - rect.width) * 0.5
+        rect.y = f32(window_height) - rect.height + PANEL_OFFSET
+    case .Left:
+        rect.x = -PANEL_OFFSET
+        if rect.y == 0 do rect.y = (f32(window_height) - rect.height) * 0.5
+    case .Right:
+        rect.x = f32(window_width) - rect.width + PANEL_OFFSET
+        if rect.y == 0 do rect.y = (f32(window_height) - rect.height) * 0.5
+    }
+
+    frame_count := f32(rl.GetFPS()) * PANEL_ANIM_TIME
+    t: f32
+    if panel.is_open {
+        t = ease.cubic_in(1.0 - f32(panel.anim_frame) / f32(frame_count))
+    } else {
+        t = ease.cubic_out(1.0 - f32(panel.anim_frame) / f32(frame_count))
+    }
+
+    // calculate rect and handle rect from animation frame based on location
+    draw_rect := rect
     handle_rect: rl.Rectangle
     switch panel.location {
-    case .Top: {
-        handle_rect.width = rect.width * PANEL_HANDLE_SCALE
-        handle_rect.height = handle_rect.width * 0.5
-        handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
-        // need to account for panel being offset
-        handle_rect.y = rect.y - PANEL_OFFSET
-    }
-    case .Bottom: {
-        handle_rect.width = rect.width * PANEL_HANDLE_SCALE
-        handle_rect.height = handle_rect.width * 0.5
-        handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
-        // need to account for panel being offset
-        handle_rect.y = rect.y + PANEL_OFFSET
-    }
-    case .Right: {
-        handle_rect.height = rect.height * PANEL_HANDLE_SCALE
-        handle_rect.width = handle_rect.height * 0.5
-        handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
-        // need to account for panel being offset
-        handle_rect.x = rect.x + PANEL_OFFSET
-    }
-    case .Left: {
-        handle_rect.height = rect.height * PANEL_HANDLE_SCALE
-        handle_rect.width = handle_rect.height * 0.5
-        handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
-        // need to account for panel being offset
-        handle_rect.x = rect.x + PANEL_OFFSET
-    }
-    }
+    case .Top:
+        dest_y := panel.is_open ? rect.y : rect.y - rect.height + PANEL_OFFSET
+        start_y := panel.is_open ? rect.y - rect.height + PANEL_OFFSET : rect.y
+        draw_rect.y = math.lerp(start_y, dest_y, t)
 
-    rl.DrawRectangleRec(handle_rect, ORANGE)
+        // handle rect
+        handle_rect.width = rect.height * PANEL_HANDLE_SCALE
+        handle_rect.height = handle_rect.width * 0.25
+        handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
+        // need to account for panel being offset
+        handle_rect.y = draw_rect.y + rect.height
+    case .Left:
+        dest_x := panel.is_open ? rect.x : rect.x - rect.width + PANEL_OFFSET
+        start_x := panel.is_open ? rect.x - rect.width + PANEL_OFFSET : rect.x
+        draw_rect.x = math.lerp(start_x, dest_x, t)
+
+        handle_rect.height = rect.width * PANEL_HANDLE_SCALE
+        handle_rect.width = handle_rect.height * 0.25
+        handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
+        handle_rect.x = draw_rect.x + rect.width
+    case .Right:
+        dest_x := panel.is_open ? rect.x : rect.x + rect.width - PANEL_OFFSET
+        start_x := panel.is_open ? rect.x + rect.width - PANEL_OFFSET : rect.x
+        draw_rect.x = math.lerp(start_x, dest_x, t)
+
+        handle_rect.height = rect.width * PANEL_HANDLE_SCALE
+        handle_rect.width = handle_rect.height * 0.25
+        handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
+        handle_rect.x = draw_rect.x - handle_rect.width
+    case .Bottom:
+        dest_y := panel.is_open ? rect.y : rect.y + rect.height - PANEL_OFFSET
+        start_y := panel.is_open ? rect.y + rect.height - PANEL_OFFSET : rect.y
+        draw_rect.y = math.lerp(start_y, dest_y, t)
+
+        handle_rect.width = rect.height * PANEL_HANDLE_SCALE
+        handle_rect.height = handle_rect.width * 0.25
+        handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
+        handle_rect.y = draw_rect.y - handle_rect.height
+    }
+    return draw_rect, handle_rect
 }
 
 gui_button :: proc(rect: rl.Rectangle, text: cstring, ui_focused: ^bool) -> bool {
@@ -368,8 +402,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
 
 // Gui drop down, items will all be the same size as rect
 // ui_focus gets set when the mouse is hovering over the dropdown
-gui_drop_down :: proc(rect: rl.Rectangle, text: cstring, items: []cstring, selected: ^int, ui_focus: ^bool) -> bool {
-    @(static) expanded: bool
+gui_drop_down :: proc(rect: rl.Rectangle, text: cstring, items: []cstring, expanded: ^bool, selected: ^int, ui_focus: ^bool) -> bool {
 
     hover_item := -1
     did_select: bool
@@ -381,11 +414,11 @@ gui_drop_down :: proc(rect: rl.Rectangle, text: cstring, items: []cstring, selec
 
     if rl.CheckCollisionPointRec(mouse_pos, base_rect) {
         if rl.IsMouseButtonPressed(.LEFT) {
-            expanded = !expanded
+            expanded^ = !expanded^
         }
         hover_item = 0
     }
-    if expanded {
+    if expanded^ {
         for i in 0..<count {
             rect.y += rect.height
             if rl.CheckCollisionPointRec(mouse_pos, rect) {
@@ -403,7 +436,7 @@ gui_drop_down :: proc(rect: rl.Rectangle, text: cstring, items: []cstring, selec
 
     // drop down
     rect = base_rect
-    if expanded {
+    if expanded^ {
         hover := hover_item == -1 ? selected^ : hover_item - 1
         for i in 0..<count {
             rect.y += rect.height

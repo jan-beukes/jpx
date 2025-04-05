@@ -11,7 +11,8 @@ import rlgl "vendor:raylib/rlgl"
 
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
-WINDOW_MIN_SIZE :: 300
+WINDOW_MIN_HEIGHT :: 360
+WINDOW_MIN_WIDTH :: 480
 
 MAX_SCALE :: 1.2
 MIN_SCALE :: MAX_SCALE / 2.0
@@ -125,7 +126,11 @@ handle_ui :: proc() {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
 
     state.ui_is_focused = false
-    @(static) mouse_cursor: rl.MouseCursor
+
+    // UI state 
+    @static mouse_cursor: rl.MouseCursor
+    @static style_dropdown_expanded: bool
+    @static plot_panel: Gui_Panel
 
     gui_begin()
 
@@ -140,14 +145,11 @@ handle_ui :: proc() {
         "Satelite",
     }
     selected := int(req_state.tile_layer.style)
-    if gui_drop_down(rect, "Map Style", items, &selected, &state.ui_is_focused) {
+    if gui_drop_down(rect, "Map Style", items, &style_dropdown_expanded, &selected, &state.ui_is_focused) {
         switch_tile_layer(Layer_Style(selected))
     }
 
-    size: f32 = WINDOW_HEIGHT * 0.03
-    rect = rl.Rectangle{f32(window_width) - 1.1*size, f32(window_height) - 1.1*size, size, size}
-    gui_copyright(rect, req_state.tile_layer.style, &state.ui_is_focused)
-
+    // Open file button
     width = WINDOW_HEIGHT * 0.18
     height = width * 0.2
     rect = rl.Rectangle{0, 0, width, height}
@@ -163,6 +165,21 @@ handle_ui :: proc() {
 
     when ODIN_DEBUG do gui_debug(0, height + height*0.5)
 
+    // plot panel
+    debug_width := f32(WINDOW_HEIGHT) * 0.35
+    plot_panel.rect = rl.Rectangle {
+        x = debug_width,
+        width = f32(window_width) - PANEL_OFFSET - debug_width,
+        height = 200.0,
+    }
+    plot_panel.location = .Bottom
+    gui_panel_plots(&plot_panel, state.track, &state.ui_is_focused)
+
+
+    // Copyright
+    size: f32 = WINDOW_HEIGHT * 0.03
+    rect = rl.Rectangle{f32(window_width) - 1.1*size, f32(window_height) - 1.1*size, size, size}
+    gui_copyright(rect, req_state.tile_layer.style, &state.ui_is_focused)
     // change cursor
     if mouse_cursor != gui_mouse_cursor {
         rl.SetMouseCursor(gui_mouse_cursor)
@@ -301,7 +318,7 @@ handle_input :: proc() {
     //---Map Movement---
 
     // movement state
-    @(static) move_state: struct {
+    @static move_state: struct {
         zoom_frame: i32,
         zoom_step: f32,
         mouse_zoom: bool,
@@ -498,7 +515,7 @@ init :: proc() {
     rl.SetTraceLogLevel(.ERROR)
     rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
-    rl.SetWindowMinSize(WINDOW_MIN_SIZE, WINDOW_MIN_SIZE)
+    rl.SetWindowMinSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
     rl.SetWindowIcon(rl.LoadImageFromMemory(".png", raw_data(ICON_DATA), i32(len(ICON_DATA))))
     when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
     rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
