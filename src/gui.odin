@@ -8,12 +8,14 @@ import "core:time/datetime"
 import rl "vendor:raylib"
 
 BORDER_THICK :: 1.2
-PADDING_FACTOR :: 0.2
+PADDING_FACTOR :: 0.15
 FADE_AMMOUNT :: 0.9
 
 PANEL_ANIM_TIME :: 0.3
-PANEL_OFFSET :: 20
-PANEL_HANDLE_SCALE :: 0.5
+PANEL_HANDLE_SCALE :: 0.3
+
+STATS_PANEL_MAX_SCALE :: 0.5
+PLOT_PANEL_MAX_SCALE :: 0.7
 
 DARK_BLUE :: rl.Color{0x0d, 0x2b, 0x45, 0xff}
 BLUE :: rl.Color{0x20, 0x3c, 0x56, 0xff}
@@ -60,6 +62,38 @@ Gui_Panel :: struct {
     location: Panel_Location,
 }
 
+Months :: enum {
+    January,
+    February,
+    March,
+    April,
+    May,
+    June,
+    July,
+    August,
+    September,
+    October,
+    November,
+    December,
+}
+
+@rodata
+month_names := [Months]cstring {
+    .January = "January",
+    .February = "February",
+    .March = "March",
+    .April = "April",
+    .May = "May",
+    .June = "June",
+    .July = "July",
+    .August = "August",
+    .September = "September",
+    .October = "October",
+    .November = "November",
+    .December = "December",
+}
+
+
 g_font: rl.Font
 gui_mouse_cursor: rl.MouseCursor
 
@@ -72,93 +106,14 @@ gui_begin :: proc() {
     gui_mouse_cursor = .DEFAULT
 }
 
-gui_debug :: proc(x, y: f32) {
-    window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
-
-    height: f32 = state.is_track_open ? 0.5 : 0.15
-    overlay := rl.Vector2 {
-        f32(WINDOW_HEIGHT) * 0.35,
-        f32(WINDOW_HEIGHT) * 0.9,
-    }
-    rl.DrawRectangleRounded({-PANEL_OFFSET, y, overlay.x, overlay.y}, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
-
-    padding := overlay.y * 0.02
-    font_size: f32 = WINDOW_HEIGHT / 40.0
-
-    cursor := rl.Vector2{x, y}
-    cursor.y += padding
-    draw_text(rl.TextFormat("Cache: %d tiles", len(state.cache)), cursor, font_size, PEACH)
-
-    cursor.y += font_size + padding
-    draw_text(rl.TextFormat("Zoom: %d | %.1fx", state.map_screen.zoom, state.map_screen.scale), cursor, font_size, PEACH)
-
-    mouse_coord := mercator_to_coord(screen_to_map(state.map_screen, rl.GetMousePosition()),
-        state.map_screen.zoom)
-    cursor.y += font_size + padding
-    draw_text(rl.TextFormat("Mouse: [%.3f, %.3f]", mouse_coord.x, mouse_coord.y),
-        cursor, font_size, PEACH)
-
-    // Track
-    if state.is_track_open {
-        cursor.y += 2 * font_size + padding
-        text := rl.TextFormat("TRACK:")
-        draw_text(text, cursor, font_size, WHITE)
-
-        cursor.y += font_size + padding
-        text = rl.TextFormat("%s", state.track.name)
-        draw_text(text, cursor, font_size, WHITE)
-
-        // some files dont have any time info
-        date, ok := state.track.metadata.date_time.(datetime.DateTime)
-        if ok {
-            cursor.y += font_size + padding
-            text = rl.TextFormat("%d-%d-%d %d:%d:%d", date.day, date.month, date.year, date.hour,
-                date.minute, date.second)
-            draw_text(text, cursor, font_size, WHITE)
-        }
-
-        cursor.y += 2 * font_size + padding
-        hours, mins, _ := time.clock_from_duration(state.track.duration)
-        text = rl.TextFormat("Total time: %dh %dm", hours, mins)
-        draw_text(text, cursor, font_size, WHITE)
-
-        cursor.y += font_size + padding
-        text = rl.TextFormat("Distance: %.2fkm", state.track.total_distance / 1000.0)
-        draw_text(text, cursor, font_size, WHITE)
-
-        cursor.y += font_size + padding
-        text = rl.TextFormat("Elev gain: %.0fm", state.track.elevation_gain)
-        draw_text(text, cursor, font_size, WHITE)
-
-        cursor.y += font_size + padding
-        text = rl.TextFormat("Max elev: %.0fm", state.track.max_elevation)
-        draw_text(text, cursor, font_size, WHITE)
-
-        if state.track.avg_hr > 0 {
-            cursor.y += font_size + padding
-            text = rl.TextFormat("Avg hr: %d", state.track.avg_hr)
-            draw_text(text, cursor, font_size, WHITE)
-        }
-
-        cursor.y += font_size + padding
-        if state.track.type == .Running {
-            mpk := (1.0 / state.track.avg_speed) * (1000.0 / 60.0)
-            min := i32(mpk)
-            sec := i32(60 * (mpk - math.trunc(mpk)))
-            text = rl.TextFormat("Avg pace: %d:%2d /km", min, sec)
-        } else {
-            kph := (state.track.avg_speed * 3600) / 1000.0
-            text = rl.TextFormat("Avg speed: %.1fkph", kph)
-        }
-        draw_text(text, cursor, font_size, WHITE)
-    }
-
-}
-
 //---Panel stuff---
 
 // panel with all the plots
 gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
+    // this is makes the forces auto close nicer so im just gonna keep that state in the function
+    @static was_force_closed: bool
+
+    // Panel prelude
     rect, handle_rect := get_panel_rects(panel^)
     mouse_pos := rl.GetMousePosition()
 
@@ -166,7 +121,6 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         ui_focused^ = true
     }
 
-    // TODO: check for click on the panel handle and change panel state
     if rl.CheckCollisionPointRec(mouse_pos, handle_rect) {
         gui_mouse_cursor = .POINTING_HAND
         ui_focused^ = true
@@ -175,9 +129,69 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
             panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
         }
     }
+    window_height := rl.GetScreenHeight()
+    // auto close the panel when it's taking up too much space
+    over_max_scale := rect.height > f32(window_height) * PLOT_PANEL_MAX_SCALE 
+    if panel.is_open && over_max_scale {
+        panel.is_open = !panel.is_open
+        panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
+        was_force_closed = true
+    } else if was_force_closed && !over_max_scale {
+        panel.is_open = !panel.is_open
+        panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
+        was_force_closed = false
+    }
 
     // draw the rect and handle
-    rl.DrawRectangleRounded(rect, 0.2, 20, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    rl.DrawRectangleRec(rect, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    draw_panel_handle(handle_rect, panel^)
+
+    // exit early
+    if !panel.is_open && panel.anim_frame == 0 {
+        return
+    } else if panel.anim_frame > 0 {
+        panel.anim_frame -= 1
+    }
+
+    //---Panel Content---
+}
+
+gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
+    // this is makes the forces auto close nicer so im just gonna keep that state in the function
+    @static was_force_closed: bool
+
+
+    // Panel prelude
+    rect, handle_rect := get_panel_rects(panel^)
+    mouse_pos := rl.GetMousePosition()
+
+    if panel.is_open && rl.CheckCollisionPointRec(mouse_pos, rect) {
+        ui_focused^ = true
+    }
+
+    if rl.CheckCollisionPointRec(mouse_pos, handle_rect) {
+        gui_mouse_cursor = .POINTING_HAND
+        ui_focused^ = true
+        if rl.IsMouseButtonPressed(.LEFT) {
+            panel.is_open = !panel.is_open
+            panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
+        }
+    }
+    window_width := rl.GetScreenWidth()
+    // auto close the panel when it's taking up too much space
+    over_max_scale := rect.width > f32(window_width) * STATS_PANEL_MAX_SCALE 
+    if panel.is_open && over_max_scale {
+        panel.is_open = !panel.is_open
+        panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
+        was_force_closed = true
+    } else if was_force_closed && !over_max_scale {
+        panel.is_open = !panel.is_open
+        panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
+        was_force_closed = false
+    }
+
+    // draw the rect and handle
+    rl.DrawRectangleRec(rect, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
     draw_panel_handle(handle_rect, panel^)
 
     if !panel.is_open && panel.anim_frame == 0 {
@@ -186,22 +200,75 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         panel.anim_frame -= 1
     }
 
-    // since rect is used to calculate the content's positions and sizes when
-    // remove the hidden parts of the rect
-    if panel.location == .Top || panel.location == .Bottom {
-        rect.height -= PANEL_OFFSET
-    } else {
-        rect.width -= PANEL_OFFSET
+    //---Panel Content---
+
+    padding: f32 = rect.width * 0.04
+    font_size: f32 = PANEL_SIZE * PADDING_FACTOR * 0.5
+    cursor := rl.Vector2{rect.x + padding, rect.y + padding}
+    text: cstring
+
+    // we use scissor mode to cut things draw outside the panel
+    rl.BeginScissorMode(i32(rect.x), i32(rect.y), i32(rect.width), i32(rect.height))
+
+    if track.name != "" {
+        text = rl.TextFormat("%s", track.name)
+        draw_text(text, cursor, font_size, WHITE)
     }
 
 
-}
+    // some files dont have any time info
+    date, ok := track.metadata.date_time.(datetime.DateTime)
+    if ok {
+        cursor.y += font_size + padding
+        text = rl.TextFormat("%d %s %d %2d:%2d:%2d", date.day, month_names[Months(date.month - 1)], date.year, date.hour,
+            date.minute, date.second)
+        draw_text(text, cursor, font_size, WHITE)
+    }
 
-gui_panel_stats :: proc(panel: Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
+    if track.duration != 0 {
+        cursor.y += 2 * font_size + padding
+        hours, mins, _ := time.clock_from_duration(track.duration)
+        text = rl.TextFormat("Elapsed time: %dh %dm", hours, mins)
+        draw_text(text, cursor, font_size, WHITE)
+    }
+
+    cursor.y += font_size + padding
+    text = rl.TextFormat("Distance: %.2fkm", track.total_distance / 1000.0)
+    draw_text(text, cursor, font_size, WHITE)
+
+    cursor.y += font_size + padding
+    text = rl.TextFormat("Elev gain: %.0fm", track.elevation_gain)
+    draw_text(text, cursor, font_size, WHITE)
+
+    cursor.y += font_size + padding
+    text = rl.TextFormat("Max elev: %.0fm", track.max_elevation)
+    draw_text(text, cursor, font_size, WHITE)
+
+    if track.avg_hr > 0 {
+        cursor.y += font_size + padding
+        text = rl.TextFormat("Avg hr: %d", track.avg_hr)
+        draw_text(text, cursor, font_size, WHITE)
+    }
+
+    if track.avg_speed > 0 {
+        cursor.y += font_size + padding
+        if track.type == .Running {
+            mpk := (1.0 / track.avg_speed) * (1000.0 / 60.0)
+            min := i32(mpk)
+            sec := i32(60 * (mpk - math.trunc(mpk)))
+            text = rl.TextFormat("Avg pace: %d:%2d /km", min, sec)
+        } else {
+            kph := (track.avg_speed * 3600) / 1000.0
+            text = rl.TextFormat("Avg speed: %.1fkph", kph)
+        }
+        draw_text(text, cursor, font_size, WHITE)
+    }
+
+    rl.EndScissorMode()
 }
 
 draw_panel_handle :: proc(rect: rl.Rectangle, panel: Gui_Panel) {
-    rl.DrawRectangleRec(rect, rl.Fade(BLUE, 0.75 * FADE_AMMOUNT))
+    rl.DrawRectangleRec(rect, DARK_BLUE)
     center := rl.Vector2 {rect.x + (rect.width*0.5), rect.y + (rect.height*0.5)}
     size := min(rect.width, rect.height) * 0.3
     rotation := panel.is_open ? f32(panel.location) * -90.0 : f32(panel.location) * 90.0
@@ -209,24 +276,15 @@ draw_panel_handle :: proc(rect: rl.Rectangle, panel: Gui_Panel) {
 }
 
 // This function uses the panel's location and state (anim_frame and is_open) to calculate the
-// current rect for the panel and it's handle
+// transformed rect for the panel and it's handle
 get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
     rect := panel.rect
-    // get the default rect
-    switch panel.location {
-    case .Top:
-        if rect.x == 0 do rect.x = (f32(window_width) - rect.width) * 0.5
-        rect.y = -PANEL_OFFSET
-    case .Bottom:
-        if rect.x == 0 do rect.x = (f32(window_width) - rect.width) * 0.5
-        rect.y = f32(window_height) - rect.height + PANEL_OFFSET
-    case .Left:
-        rect.x = -PANEL_OFFSET
-        if rect.y == 0 do rect.y = (f32(window_height) - rect.height) * 0.5
-    case .Right:
-        rect.x = f32(window_width) - rect.width + PANEL_OFFSET
-        if rect.y == 0 do rect.y = (f32(window_height) - rect.height) * 0.5
+    // offset the rect
+    if panel.location == .Bottom {
+        rect.y = f32(window_height) - rect.height
+    } else if panel.location == .Right {
+        rect.x = f32(window_width) - rect.width
     }
 
     frame_count := f32(rl.GetFPS()) * PANEL_ANIM_TIME
@@ -242,8 +300,8 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
     handle_rect: rl.Rectangle
     switch panel.location {
     case .Top:
-        dest_y := panel.is_open ? rect.y : rect.y - rect.height + PANEL_OFFSET
-        start_y := panel.is_open ? rect.y - rect.height + PANEL_OFFSET : rect.y
+        dest_y := panel.is_open ? rect.y : rect.y - rect.height
+        start_y := panel.is_open ? rect.y - rect.height : rect.y
         draw_rect.y = math.lerp(start_y, dest_y, t)
 
         // handle rect
@@ -253,8 +311,8 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
         // need to account for panel being offset
         handle_rect.y = draw_rect.y + rect.height
     case .Left:
-        dest_x := panel.is_open ? rect.x : rect.x - rect.width + PANEL_OFFSET
-        start_x := panel.is_open ? rect.x - rect.width + PANEL_OFFSET : rect.x
+        dest_x := panel.is_open ? rect.x : rect.x - rect.width
+        start_x := panel.is_open ? rect.x - rect.width : rect.x
         draw_rect.x = math.lerp(start_x, dest_x, t)
 
         handle_rect.height = rect.width * PANEL_HANDLE_SCALE
@@ -262,8 +320,8 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
         handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
         handle_rect.x = draw_rect.x + rect.width
     case .Right:
-        dest_x := panel.is_open ? rect.x : rect.x + rect.width - PANEL_OFFSET
-        start_x := panel.is_open ? rect.x + rect.width - PANEL_OFFSET : rect.x
+        dest_x := panel.is_open ? rect.x : rect.x + rect.width
+        start_x := panel.is_open ? rect.x + rect.width : rect.x
         draw_rect.x = math.lerp(start_x, dest_x, t)
 
         handle_rect.height = rect.width * PANEL_HANDLE_SCALE
@@ -271,8 +329,8 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
         handle_rect.y = rect.y + (rect.height - handle_rect.height) * 0.5
         handle_rect.x = draw_rect.x - handle_rect.width
     case .Bottom:
-        dest_y := panel.is_open ? rect.y : rect.y + rect.height - PANEL_OFFSET
-        start_y := panel.is_open ? rect.y + rect.height - PANEL_OFFSET : rect.y
+        dest_y := panel.is_open ? rect.y : rect.y + rect.height
+        start_y := panel.is_open ? rect.y + rect.height : rect.y
         draw_rect.y = math.lerp(start_y, dest_y, t)
 
         handle_rect.width = rect.height * PANEL_HANDLE_SCALE

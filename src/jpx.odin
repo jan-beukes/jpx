@@ -27,6 +27,8 @@ MAX_SPEED :: 1600
 TRACK_LINE_THICK :: 4
 END_POINT_RADIUS :: 6.0
 
+PANEL_SIZE :: 300.0
+
 FONT_DATA :: #load("../res/font.ttf")
 ICON_DATA :: #load("../res/icon.png")
 
@@ -130,6 +132,7 @@ handle_ui :: proc() {
     // UI state 
     @static mouse_cursor: rl.MouseCursor
     @static style_dropdown_expanded: bool
+    @static stats_panel: Gui_Panel
     @static plot_panel: Gui_Panel
 
     gui_begin()
@@ -163,24 +166,41 @@ handle_ui :: proc() {
         }
     }
 
-    when ODIN_DEBUG do gui_debug(0, height + height*0.5)
+    //---Panels---
+    if true {
+        // stats panel
+        transformed_rect, _ := get_panel_rects(plot_panel)
 
-    // plot panel
-    debug_width := f32(WINDOW_HEIGHT) * 0.35
-    plot_panel.rect = rl.Rectangle {
-        x = debug_width,
-        width = f32(window_width) - PANEL_OFFSET - debug_width,
-        height = 200.0,
+        // move stats panel to fit with plot panel
+        stats_panel_y := f32(window_height) * 0.1
+        stats_panel_height := f32(window_height) - stats_panel_y
+        if transformed_rect.y < stats_panel_y + stats_panel_height {
+            stats_panel_height = transformed_rect.y - stats_panel_y
+        }
+        stats_panel.rect = rl.Rectangle {
+            y = stats_panel_y,
+            width = PANEL_SIZE,
+            height = stats_panel_height,
+        }
+        stats_panel.location = .Left
+        gui_panel_stats(&stats_panel, state.track, &state.ui_is_focused)
+
+        // plot panel
+        plot_panel.rect = rl.Rectangle {
+            width = f32(window_width),
+            height = PANEL_SIZE,
+        }
+        plot_panel.location = .Bottom
+        gui_panel_plots(&plot_panel, state.track, &state.ui_is_focused)
     }
-    plot_panel.location = .Bottom
-    gui_panel_plots(&plot_panel, state.track, &state.ui_is_focused)
-
 
     // Copyright
     size: f32 = WINDOW_HEIGHT * 0.03
     rect = rl.Rectangle{f32(window_width) - 1.1*size, f32(window_height) - 1.1*size, size, size}
     gui_copyright(rect, req_state.tile_layer.style, &state.ui_is_focused)
-    // change cursor
+
+
+    // apply any cursor changes
     if mouse_cursor != gui_mouse_cursor {
         rl.SetMouseCursor(gui_mouse_cursor)
         mouse_cursor = gui_mouse_cursor
