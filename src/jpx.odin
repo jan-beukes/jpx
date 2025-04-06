@@ -489,8 +489,6 @@ handle_input :: proc() {
 }
 
 update :: proc() {
-    log.debug(rl.GetFPS())
-
     // only evict when we are near the limit
     if rl.GetTime() - state.last_eviction > CACHE_TIMEOUT {
         evict_cache(&state.cache, state.map_screen)
