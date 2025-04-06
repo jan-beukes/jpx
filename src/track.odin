@@ -59,6 +59,7 @@ Gps_Track :: struct {
     duration: time.Duration,
 
     avg_hr: u32,
+    max_hr: u32,
 
     // all in meters and seconds
     total_distance: f32,
@@ -184,8 +185,10 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
                     date_time_to_local(&track.metadata.date_time.(DateTime))
                 }
 
+                // set max and min for ele and hr
                 if track_point.elevation > max_ele do max_ele = track_point.elevation
                 if track_point.elevation < min_ele do min_ele = track_point.elevation
+                if track_point.hr > track.max_hr do track.max_hr = track_point.hr
                 total_hr += track_point.hr
 
                 append(&track.points, track_point)
@@ -256,9 +259,22 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
         alpha: f32 = 0.1 // smoothing
         ema_elev := alpha * point.elevation + (1 - alpha) * prev.elevation
 
+        // calculate time diff for paused time and speed
+        secs: f64
+        if point.time != nil  {
+            start, _ := time.datetime_to_time(prev.time.(DateTime))
+            end, _ := time.datetime_to_time(point.time.(DateTime))
+            time_diff := time.diff(start, end)
+            assert(time_diff >= 0)
+            secs := time.duration_seconds(time_diff)
+            // if points have a delta greater than 30s it is counted as a pause
+            if secs > 30.0 {
+                paused_time += secs
+            }
+        } 
+
         // NOTE: we don't always get all the data so some values need to be calculated
         // so we use haversine for distance
-
         if .Distance not_in loaded_ext {
             // distance using haversine
             flat_dist := coord_distance(prev.coord, point.coord)
@@ -266,27 +282,11 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
             dist := math.sqrt(elev_diff * elev_diff + flat_dist * flat_dist) // account for elevation diff
             track.points[i].distance = prev.distance + dist
 
-            if point.time != nil  {
-                start, _ := time.datetime_to_time(prev.time.(DateTime))
-                end, _ := time.datetime_to_time(point.time.(DateTime))
-                time_diff := time.diff(start, end)
-                assert(time_diff >= 0)
-                secs := time.duration_seconds(time_diff)
-                if secs > 0.0 {
-                    track.points[i].speed = dist / f32(secs)
-                    if secs > 2.0 {
-                        paused_time += secs
-                    }
-                }
-            } 
             // NOTE: I don't think there is any way to do speed/time consistentlt without time
             // I thought points had a standard 1 second delta but it doesn't seem consistent
-
-            //else {
-            //    // if we don't have time just use the standart 1 second delta
-            //    // This could maybe cause a speed jump when gps is paused but better than nothing
-            //    track.points[i].speed = dist / 1.0
-            //}
+            if secs > 0.0 {
+                track.points[i].speed = dist / f32(secs)
+            }
         }
         // first make sure that there is a speed value
         ema_speed := alpha * track.points[i].speed + (1 - alpha) * prev.speed

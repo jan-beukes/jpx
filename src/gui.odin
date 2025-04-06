@@ -13,6 +13,7 @@ FADE_AMMOUNT :: 0.9
 
 PANEL_ANIM_TIME :: 0.3
 PANEL_HANDLE_SCALE :: 0.3
+PANEL_BORDER_THICK :: 3.0
 
 STATS_PANEL_MAX_SCALE :: 0.5
 PLOT_PANEL_MAX_SCALE :: 0.7
@@ -35,17 +36,6 @@ Gui_Colors :: struct {
     hover2: rl.Color,
     hover: rl.Color,
     select: rl.Color,
-}
-
-COLORS :: Gui_Colors {
-    bg = DARK_BLUE,
-    bg2 = DARK_PURPLE,
-    fg = WHITE,
-    fg2 = PEACH,
-    hover = BLUE,
-    hover2 = PURPLE,
-    border = WHITE,
-    select = PEACH,
 }
 
 Panel_Location :: enum {
@@ -108,7 +98,7 @@ gui_begin :: proc() {
 
 //---Panel stuff---
 
-// panel with all the plots
+// Handles the plot panel
 gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
     // this is makes the forces auto close nicer so im just gonna keep that state in the function
     @static was_force_closed: bool
@@ -144,6 +134,7 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
 
     // draw the rect and handle
     rl.DrawRectangleRec(rect, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    rl.DrawRectangleLinesEx(rect, PANEL_BORDER_THICK, BLUE)
     draw_panel_handle(handle_rect, panel^)
 
     // exit early
@@ -153,13 +144,121 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         panel.anim_frame -= 1
     }
 
-    //---Panel Content---
+    /*********
+    * PLOTS
+    **********/
+
+    padding := rect.height * 0.03
+    font_size := rect.height * 0.065
+
+    // Draw the axes
+    axis_rect_y := rect.y + font_size + 3 * padding
+    axis_rect := rl.Rectangle {
+        x = rect.x + padding,
+        y = axis_rect_y,
+        width = rect.width - 2 * padding,
+        height = rect.height - (axis_rect_y - rect.y) - padding
+    }
+
+    AXIS_STEPS :: 6.0
+    axis_font_size := font_size * 0.9
+
+    font_spacing := 2.5 * axis_font_size
+    inner_rect := rl.Rectangle {
+        x = axis_rect.x + font_spacing,
+        y = axis_rect.y,
+        width = axis_rect.width - font_spacing,
+        height = axis_rect.height - 0.5*font_spacing,
+    }
+
+    // draw the axis track_load_extensions
+    // elevation on the y axis and distance on the x axis
+    axis_delta_y := axis_rect.height / AXIS_STEPS
+    axis_delta_x := axis_rect.width / AXIS_STEPS
+    axis_elev_delta := (track.max_elevation - track.min_elevation) / AXIS_STEPS
+    axis_dist_delta := track.total_distance / AXIS_STEPS
+    for i in 0..<AXIS_STEPS {
+        // elev markers are centered on the y value
+        ele_y := axis_rect.y + f32(i) * axis_delta_y - axis_font_size * 0.5
+        elev := track.max_elevation - f32(i) * axis_elev_delta
+        dist_x := inner_rect.x + f32(i) * axis_delta_x
+        dist := f32(i) * axis_dist_delta
+
+        draw_text(rl.TextFormat("%.0fm", elev), {axis_rect.x, ele_y}, axis_font_size, WHITE)
+        draw_text(rl.TextFormat("%.1fkm", dist * 0.001), {dist_x, axis_rect.y + inner_rect.height},
+            axis_font_size, WHITE)
+    }
+
+    //---Drawing Plots---
+    PLOT_LINE_THICK :: 2.0
+
+    point_count: int = min(len(track.points), int(inner_rect.width))
+    point_step := f32(len(track.points)) / f32(point_count)
+    dx := inner_rect.width / f32(point_count)
+
+    //---Elevation---
+    {
+        y0 := inner_rect.y + inner_rect.height
+        prev_point := track.points[0]
+        // we need this to be a float since a non integer point step needs to be accumulated
+        point_idx: f32 = 0.0
+        for i in 1..<point_count {
+            point_idx += point_step
+            assert(int(point_idx) < len(track.points))
+            point := track.points[int(point_idx)]
+
+            px := inner_rect.x + f32(i - 1) * dx
+            x := inner_rect.x + f32(i) * dx
+            elev_scale := (point.elevation - track.min_elevation) /
+                (track.max_elevation - track.min_elevation)
+            prev_elev_scale := (prev_point.elevation - track.min_elevation) / 
+                (track.max_elevation - track.min_elevation)
+            py := inner_rect.y + inner_rect.height - prev_elev_scale * inner_rect.height
+            y := inner_rect.y + inner_rect.height - elev_scale * inner_rect.height
+
+            // draw triangles so that we can fill up a polygon
+            rl.DrawTriangle({px, y0}, {x, y}, {px, py}, rl.GRAY)
+            rl.DrawTriangle({px, y0}, {x, y0}, {x, y}, rl.GRAY)
+
+            prev_point = point
+        }
+    }
+
+    //---Heart Rate---
+    if track.avg_hr != 0 {
+        prev_point := track.points[0]
+        point_idx: f32 = 0.0
+        for i in 1..<point_count {
+            point_idx += point_step
+            assert(int(point_idx) < len(track.points))
+            point := track.points[int(point_idx)]
+
+            px := inner_rect.x + f32(i - 1) * dx
+            x := inner_rect.x + f32(i) * dx
+            scale := f32(point.hr) / f32(track.max_hr)
+            prev_scale := f32(prev_point.hr) / f32(track.max_hr)
+            py := inner_rect.y + inner_rect.height - prev_scale * inner_rect.height
+            y := inner_rect.y + inner_rect.height - scale * inner_rect.height
+
+            rl.DrawLineEx({px, py}, {x, y}, PLOT_LINE_THICK, rl.RED)
+
+            prev_point = point
+        }
+
+    }
+
+    // Axis lines drawn after the plot lines
+    rl.DrawLineEx({inner_rect.x, inner_rect.y}, {inner_rect.x, inner_rect.y +
+        inner_rect.height}, 2.0, BLUE)
+    rl.DrawLineEx({inner_rect.x, inner_rect.y + inner_rect.height}, 
+        {inner_rect.x + inner_rect.width, inner_rect.y + inner_rect.height}, 2.0, BLUE)
+
 }
 
+// Handles the stats panel
 gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
     // this is makes the forces auto close nicer so im just gonna keep that state in the function
     @static was_force_closed: bool
-
 
     // Panel prelude
     rect, handle_rect := get_panel_rects(panel^)
@@ -192,6 +291,9 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
 
     // draw the rect and handle
     rl.DrawRectangleRec(rect, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
+    border_rect := rect
+    border_rect.height += PANEL_BORDER_THICK
+    rl.DrawRectangleLinesEx(border_rect, PANEL_BORDER_THICK, BLUE)
     draw_panel_handle(handle_rect, panel^)
 
     if !panel.is_open && panel.anim_frame == 0 {
@@ -200,23 +302,25 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         panel.anim_frame -= 1
     }
 
-    //---Panel Content---
-
+    /********
+    * STATS
+    *********/
     padding: f32 = rect.width * 0.04
     font_size: f32 = PANEL_SIZE * PADDING_FACTOR * 0.5
     cursor := rl.Vector2{rect.x + padding, rect.y + padding}
     text: cstring
 
     // we use scissor mode to cut things draw outside the panel
-    rl.BeginScissorMode(i32(rect.x), i32(rect.y), i32(rect.width), i32(rect.height))
+    rl.BeginScissorMode(i32(rect.x), i32(rect.y), i32(rect.width - PANEL_BORDER_THICK),
+        i32(rect.height - PANEL_BORDER_THICK))
 
+    // Track name
     if track.name != "" {
         text = rl.TextFormat("%s", track.name)
         draw_text(text, cursor, font_size, WHITE)
     }
 
-
-    // some files dont have any time info
+    // start time
     date, ok := track.metadata.date_time.(datetime.DateTime)
     if ok {
         cursor.y += font_size + padding
@@ -225,6 +329,7 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         draw_text(text, cursor, font_size, WHITE)
     }
 
+    // duration
     if track.duration != 0 {
         cursor.y += 2 * font_size + padding
         hours, mins, _ := time.clock_from_duration(track.duration)
@@ -232,10 +337,12 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         draw_text(text, cursor, font_size, WHITE)
     }
 
+    // distance (should always be available)
     cursor.y += font_size + padding
     text = rl.TextFormat("Distance: %.2fkm", track.total_distance / 1000.0)
     draw_text(text, cursor, font_size, WHITE)
 
+    // Elevation
     cursor.y += font_size + padding
     text = rl.TextFormat("Elev gain: %.0fm", track.elevation_gain)
     draw_text(text, cursor, font_size, WHITE)
@@ -247,6 +354,10 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     if track.avg_hr > 0 {
         cursor.y += font_size + padding
         text = rl.TextFormat("Avg hr: %d", track.avg_hr)
+        draw_text(text, cursor, font_size, WHITE)
+
+        cursor.y += font_size + padding
+        text = rl.TextFormat("Max hr: %d", track.max_hr)
         draw_text(text, cursor, font_size, WHITE)
     }
 
@@ -267,18 +378,41 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     rl.EndScissorMode()
 }
 
-draw_panel_handle :: proc(rect: rl.Rectangle, panel: Gui_Panel) {
-    rl.DrawRectangleRec(rect, DARK_BLUE)
-    center := rl.Vector2 {rect.x + (rect.width*0.5), rect.y + (rect.height*0.5)}
-    size := min(rect.width, rect.height) * 0.3
-    rotation := panel.is_open ? f32(panel.location) * -90.0 : f32(panel.location) * 90.0
-    rl.DrawPoly(center, 3, size, rotation, PEACH)
+draw_panel_handle :: proc(handle_rect: rl.Rectangle, panel: Gui_Panel) {
+    border_rect := handle_rect
+    rl.DrawRectangleRec(handle_rect, DARK_BLUE)
+    center := rl.Vector2 {handle_rect.x + (handle_rect.width*0.5), handle_rect.y + (handle_rect.height*0.5)}
+    size := min(handle_rect.width, handle_rect.height) * 0.3
+    switch panel.location {
+    case .Left:
+        rotation: f32 = panel.is_open ? 180.0 : 0.0
+        rl.DrawPoly(center, 3, size, rotation, PEACH)
+        // adjust for nicer fitting borders
+        border_rect.x -= PANEL_BORDER_THICK
+        border_rect.width += PANEL_BORDER_THICK
+    case .Top:
+        rotation: f32 = panel.is_open ? -90.0 : 90.0
+        rl.DrawPoly(center, 3, size, rotation, PEACH)
+        border_rect.y -= PANEL_BORDER_THICK
+        border_rect.height += PANEL_BORDER_THICK
+    case .Right:
+        rotation: f32 = panel.is_open ? 0.0 : 180.0
+        rl.DrawPoly(center, 3, size, rotation, PEACH)
+        border_rect.width += PANEL_BORDER_THICK
+    case .Bottom:
+        rotation: f32 = panel.is_open ? 90.0 : -90.0
+        rl.DrawPoly(center, 3, size, rotation, PEACH)
+        border_rect.height += PANEL_BORDER_THICK
+    }
+    rl.DrawRectangleLinesEx(border_rect, PANEL_BORDER_THICK, BLUE)
 }
 
-// This function uses the panel's location and state (anim_frame and is_open) to calculate the
+// This function uses the panel's state to calculate the
 // transformed rect for the panel and it's handle
+// returns panel_rect, handle_rect
 get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
     window_width, window_height := rl.GetScreenWidth(), rl.GetScreenHeight()
+
     rect := panel.rect
     // offset the rect
     if panel.location == .Bottom {
@@ -287,6 +421,8 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
         rect.x = f32(window_width) - rect.width
     }
 
+
+    // get current t for interpolation between open and close
     frame_count := f32(rl.GetFPS()) * PANEL_ANIM_TIME
     t: f32
     if panel.is_open {
@@ -300,15 +436,15 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
     handle_rect: rl.Rectangle
     switch panel.location {
     case .Top:
+        // interpolate between open and closed
         dest_y := panel.is_open ? rect.y : rect.y - rect.height
         start_y := panel.is_open ? rect.y - rect.height : rect.y
         draw_rect.y = math.lerp(start_y, dest_y, t)
 
-        // handle rect
+        // calculate handle rect
         handle_rect.width = rect.height * PANEL_HANDLE_SCALE
         handle_rect.height = handle_rect.width * 0.25
         handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
-        // need to account for panel being offset
         handle_rect.y = draw_rect.y + rect.height
     case .Left:
         dest_x := panel.is_open ? rect.x : rect.x - rect.width
@@ -338,6 +474,7 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
         handle_rect.x = rect.x + (rect.width - handle_rect.width) * 0.5
         handle_rect.y = draw_rect.y - handle_rect.height
     }
+
     return draw_rect, handle_rect
 }
 
@@ -359,12 +496,12 @@ gui_button :: proc(rect: rl.Rectangle, text: cstring, ui_focused: ^bool) -> bool
     padding := rect.height * PADDING_FACTOR
     font_size := rect.height - 2 * padding
     if hover {
-        rl.DrawRectangleRec(rect, COLORS.hover)
+        rl.DrawRectangleRec(rect, BLUE)
     } else {
-        rl.DrawRectangleRec(rect, COLORS.bg)
+        rl.DrawRectangleRec(rect, DARK_BLUE)
     }
-    draw_text(text, {rect.x + padding, rect.y + padding}, font_size, COLORS.fg)
-    rl.DrawRectangleLinesEx(rect, BORDER_THICK, COLORS.border)
+    draw_text(text, {rect.x + padding, rect.y + padding}, font_size, WHITE)
+    rl.DrawRectangleLinesEx(rect, BORDER_THICK, WHITE)
 
     return pressed
 }
@@ -386,7 +523,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
 
     // attribution links
     if expanded {
-        font_size := rect.height * 0.7
+        font_size := rect.height * 0.8
         width := style == .Osm ? rect.width * 6.5 : rect.width * 10.5 // Osm will take less
 
         expanded_rect := rl.Rectangle {
@@ -406,7 +543,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
         text_rect := rl.Rectangle {
             x = expanded_rect.x + BORDER_THICK,
             y = expanded_rect.y + BORDER_THICK,
-            width = text_width,
+            width = text_width * 0.8,
             height = rect.height,
         }
         text_hover := false
@@ -427,7 +564,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
             } else {
                 text = "(c) Mapbox" 
             }
-            text_rect.x += text_width + 0.5*font_size
+            text_rect.x += text_width * 0.9
             text_rect.width = f32(rl.MeasureText(text, i32(font_size)))
             text_hover = false
             if rl.CheckCollisionPointRec(mouse_pos, text_rect) {
@@ -499,25 +636,25 @@ gui_drop_down :: proc(rect: rl.Rectangle, text: cstring, items: []cstring, expan
         for i in 0..<count {
             rect.y += rect.height
             if i == hover {
-                rl.DrawRectangleRec(rect, rl.Fade(COLORS.hover, FADE_AMMOUNT))
+                rl.DrawRectangleRec(rect, rl.Fade(BLUE, FADE_AMMOUNT))
             } else {
-                rl.DrawRectangleRec(rect, rl.Fade(COLORS.bg, FADE_AMMOUNT))
+                rl.DrawRectangleRec(rect, rl.Fade(DARK_BLUE, FADE_AMMOUNT))
             }
-            draw_text(items[i], {rect.x + padding, rect.y + padding}, font_size, COLORS.fg)
+            draw_text(items[i], {rect.x + padding, rect.y + padding}, font_size, WHITE)
         }
         rect.y = base_rect.y + rect.height
         rect.height *= f32(count)
-        rl.DrawRectangleLinesEx(rect, BORDER_THICK, COLORS.border)
+        rl.DrawRectangleLinesEx(rect, BORDER_THICK, WHITE)
     }
 
     // Base rect
     if hover_item == 0 {
-        rl.DrawRectangleRec(base_rect, COLORS.hover)
+        rl.DrawRectangleRec(base_rect, BLUE)
     } else {
-        rl.DrawRectangleRec(base_rect, COLORS.bg)
+        rl.DrawRectangleRec(base_rect, DARK_BLUE)
     }
-    draw_text(text, {rect.x + padding, base_rect.y + padding}, font_size, COLORS.fg)
-    rl.DrawRectangleLinesEx(base_rect, BORDER_THICK, COLORS.border)
+    draw_text(text, {rect.x + padding, base_rect.y + padding}, font_size, WHITE)
+    rl.DrawRectangleLinesEx(base_rect, BORDER_THICK, WHITE)
 
 
     if hover_item != -1 && !ui_focus^ {

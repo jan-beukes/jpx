@@ -94,7 +94,7 @@ state: State
 
 draw_track :: proc() {
 
-    // if zoom change mercator coords need to be scaled
+    // if zoom changed mercator coords need to be scaled
     if state.draw_track.zoom != state.map_screen.zoom {
         for &coord in state.draw_track.coords {
             coord = scale_mercator(coord, state.draw_track.zoom, state.map_screen.zoom)
@@ -103,7 +103,7 @@ draw_track :: proc() {
     }
 
     length := len(state.draw_track.points)
-    // set points on screen
+    // recalculate points from mercator
     for i := 0; i < len(state.draw_track.points); i += 1 {
         state.draw_track.points[i] = map_to_screen(state.map_screen, state.draw_track.coords[i])
     }
@@ -166,10 +166,22 @@ handle_ui :: proc() {
         }
     }
 
+
+    copyright_size: f32 = WINDOW_HEIGHT * 0.03
+    copyright_rect := rl.Rectangle {
+        x = f32(window_width) - 1.1*copyright_size, 
+        y = f32(window_height) - 1.1*copyright_size, 
+        width = copyright_size, 
+        height = copyright_size,
+    }
+
     //---Panels---
-    if true {
+    if state.is_track_open {
         // stats panel
         transformed_rect, _ := get_panel_rects(plot_panel)
+
+        // set the copyright rect's y to fit with panel
+        copyright_rect.y = transformed_rect.y - 1.1*copyright_size
 
         // move stats panel to fit with plot panel
         stats_panel_y := f32(window_height) * 0.1
@@ -194,10 +206,9 @@ handle_ui :: proc() {
         gui_panel_plots(&plot_panel, state.track, &state.ui_is_focused)
     }
 
-    // Copyright
-    size: f32 = WINDOW_HEIGHT * 0.03
-    rect = rl.Rectangle{f32(window_width) - 1.1*size, f32(window_height) - 1.1*size, size, size}
-    gui_copyright(rect, req_state.tile_layer.style, &state.ui_is_focused)
+    // the copyright needs to be draw after the panels since it's position depends on 
+    // plots panel if it is active
+    gui_copyright(copyright_rect, req_state.tile_layer.style, &state.ui_is_focused)
 
 
     // apply any cursor changes
@@ -211,7 +222,7 @@ handle_ui :: proc() {
 // since the tile size changes for mapbox we need to recalculate center, scale and all the track points
 switch_tile_layer :: proc(style: Layer_Style) {
 
-    // TODO: Some sort of message for no api key
+    // TODO: Some sort of message for no api key where user can paste key from clipboard
     if style != .Osm && state.config.api_keys[style] == "" {
         return
     }
@@ -296,6 +307,8 @@ open_new_track :: proc(track: Gps_Track) {
     }
 }
 
+// increase scale but step, handles the increasing of zoom on reaching scale limit
+// and setting the map_screen width and height
 zoom_map :: proc(step: f32, window_width, window_height: i32) {
     // This depends on tile layer
     max_zoom := req_state.tile_layer.max_zoom
@@ -306,6 +319,7 @@ zoom_map :: proc(step: f32, window_width, window_height: i32) {
 
     state.map_screen.scale += step
 
+    // on hitting scale limit change zoom and rescale mercator coord
     if state.map_screen.scale < MIN_SCALE {
         diff := MIN_SCALE - state.map_screen.scale
         state.map_screen.zoom = max(state.map_screen.zoom - 1, MIN_ZOOM)
@@ -498,6 +512,7 @@ update :: proc() {
         rl.DrawTexturePro(item.texture, src, tile_rect, {}, 0, rl.WHITE)
         //rl.DrawRectangleLinesEx(tile_rect, 1, rl.PURPLE)
     }
+
     // Track
     if state.is_track_open {
         draw_track()

@@ -59,7 +59,8 @@ Thread_Context :: struct {
 
 // the desktop specific initialization
 init_platform :: proc(dir: string) {
-    // flags and config file
+
+    // flags and loading of config file
     flags := parse_flags(os.args)
     state.config = load_user_config()
     state.cache_to_disk = true
