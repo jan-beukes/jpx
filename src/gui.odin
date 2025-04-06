@@ -5,11 +5,14 @@ import "core:time"
 import "core:log"
 import "core:math/ease"
 import "core:time/datetime"
+import "vendor:raylib/rlgl"
 import rl "vendor:raylib"
 
 BORDER_THICK :: 1.2
 PADDING_FACTOR :: 0.15
 FADE_AMMOUNT :: 0.9
+
+TOGGLE_INNER_SCALE :: 0.8
 
 PANEL_ANIM_TIME :: 0.3
 PANEL_HANDLE_SCALE :: 0.3
@@ -91,6 +94,10 @@ draw_text :: proc(text: cstring, pos: rl.Vector2, size: f32, color: rl.Color) {
     rl.DrawTextEx(g_font, text, pos, size, 0, color)
 }
 
+measure_text :: proc(text: cstring, font_size: f32) -> f32 {
+    return rl.MeasureTextEx(g_font, text, font_size, 0).x
+}
+
 // this just resets gui cursor stuff
 gui_begin :: proc() {
     gui_mouse_cursor = .DEFAULT
@@ -147,12 +154,14 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     /*********
     * PLOTS
     **********/
+    @static hr_active: bool
+    @static speed_active: bool
 
     padding := rect.height * 0.03
-    font_size := rect.height * 0.065
+    font_size := rect.height * 0.06
 
     // Draw the axes
-    axis_rect_y := rect.y + font_size + 3 * padding
+    axis_rect_y := rect.y + 2 * font_size + 2 * padding
     axis_rect := rl.Rectangle {
         x = rect.x + padding,
         y = axis_rect_y,
@@ -190,14 +199,18 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     }
 
     //---Drawing Plots---
-    PLOT_LINE_THICK :: 2.0
+    PLOT_LINE_THICK :: 2.5
+    rlgl.SetLineWidth(PLOT_LINE_THICK)
 
-    point_count: int = min(len(track.points), int(inner_rect.width))
+    point_count: int = min(len(track.points), min(int(inner_rect.width), 4096))
     point_step := f32(len(track.points)) / f32(point_count)
     dx := inner_rect.width / f32(point_count)
 
+    points_buf: [4096]rl.Vector2
+
     //---Elevation---
     {
+
         y0 := inner_rect.y + inner_rect.height
         prev_point := track.points[0]
         // we need this to be a float since a non integer point step needs to be accumulated
@@ -216,7 +229,7 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
             py := inner_rect.y + inner_rect.height - prev_elev_scale * inner_rect.height
             y := inner_rect.y + inner_rect.height - elev_scale * inner_rect.height
 
-            // draw triangles so that we can fill up a polygon
+            // unlike other plots we render triangles to fill out a polygon
             rl.DrawTriangle({px, y0}, {x, y}, {px, py}, rl.GRAY)
             rl.DrawTriangle({px, y0}, {x, y0}, {x, y}, rl.GRAY)
 
@@ -225,27 +238,83 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     }
 
     //---Heart Rate---
-    if track.avg_hr != 0 {
-        prev_point := track.points[0]
+    if hr_active && track.avg_hr != 0 {
+        count: int
         point_idx: f32 = 0.0
-        for i in 1..<point_count {
-            point_idx += point_step
+        for i in 0..<point_count {
             assert(int(point_idx) < len(track.points))
             point := track.points[int(point_idx)]
 
-            px := inner_rect.x + f32(i - 1) * dx
             x := inner_rect.x + f32(i) * dx
             scale := f32(point.hr) / f32(track.max_hr)
-            prev_scale := f32(prev_point.hr) / f32(track.max_hr)
-            py := inner_rect.y + inner_rect.height - prev_scale * inner_rect.height
             y := inner_rect.y + inner_rect.height - scale * inner_rect.height
 
-            rl.DrawLineEx({px, py}, {x, y}, PLOT_LINE_THICK, rl.RED)
-
-            prev_point = point
+            points_buf[count] = {x, y}
+            count += 1
+            point_idx += point_step
         }
+        rl.DrawLineStrip(raw_data(points_buf[:count]), auto_cast count, rl.RED)
 
     }
+
+    rlgl.DrawRenderBatchActive()
+    rlgl.SetLineWidth(1.0)
+
+    //---Values and toggles---
+    // values are rendered depending on the selected point in the track, if nothing is selected
+    // default values are shown in the value text
+
+    values_count := 3
+
+    toggle_radius := font_size * 0.7
+    toggles_width := f32(values_count) * toggle_radius + f32(values_count - 1) * padding
+
+    cursor := rl.Vector2{axis_rect.x + (axis_rect.width - toggles_width) * 0.5,
+        axis_rect.y - font_size}
+
+    text: cstring
+    text_width: f32
+    pos: rl.Vector2
+    mid_x: f32
+
+    // Distance
+    text = rl.TextFormat("%.1fkm", track.total_distance * 0.001)
+    text_width = measure_text(text, font_size)
+    draw_text(text, cursor, font_size, WHITE)
+
+    text = "Distance"
+    mid_x = cursor.x + text_width * 0.5
+    text_width = measure_text(text, font_size)
+    pos = rl.Vector2{mid_x - text_width * 0.5, cursor.y - 1.5*font_size}
+    draw_text(text, pos, font_size, PEACH)
+
+    // elevation
+    cursor.x += text_width + padding
+    text = rl.TextFormat("%.0fm", track.elevation_gain)
+    text_width = measure_text(text, font_size)
+    draw_text(text, cursor, font_size, WHITE)
+
+    text = "Gain"
+    mid_x = cursor.x + text_width * 0.5
+    text_width = measure_text(text, font_size)
+    pos = rl.Vector2{mid_x - text_width * 0.5, cursor.y - 1.5*font_size}
+    draw_text(text, pos, font_size, PEACH)
+
+    // Heartrate
+    if track.avg_hr != 0.0 {
+        cursor.x += text_width + padding
+        text = rl.TextFormat("%dbpm", track.avg_hr)
+        text_width = measure_text(text, font_size)
+        draw_text(text, cursor, font_size, WHITE)
+
+        mid_x = cursor.x + text_width * 0.5
+        pos = rl.Vector2{mid_x, cursor.y - font_size}
+
+        if gui_toggle(pos, toggle_radius, rl.RED, &hr_active) {
+            gui_mouse_cursor = .POINTING_HAND
+        }
+    }
+
 
     // Axis lines drawn after the plot lines
     rl.DrawLineEx({inner_rect.x, inner_rect.y}, {inner_rect.x, inner_rect.y +
@@ -476,6 +545,25 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
     }
 
     return draw_rect, handle_rect
+}
+
+// toggle button return true on hover
+gui_toggle :: proc(pos: rl.Vector2, radius: f32, color: rl.Color, toggled: ^bool) -> bool {
+    mouse_pos := rl.GetMousePosition()
+    hover := false
+    if rl.CheckCollisionPointCircle(mouse_pos, pos, radius) {
+        hover = true
+        if rl.IsMouseButtonPressed(.LEFT) {
+            if toggled != nil do toggled^ = !toggled^
+        }
+    }
+
+    rl.DrawRing(pos, radius * TOGGLE_INNER_SCALE, radius, 0, 360, 1, color)
+    if toggled^ {
+        rl.DrawCircleV(pos, radius, color)
+    }
+
+    return hover
 }
 
 gui_button :: proc(rect: rl.Rectangle, text: cstring, ui_focused: ^bool) -> bool {
