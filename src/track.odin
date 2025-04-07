@@ -266,7 +266,7 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
             end, _ := time.datetime_to_time(point.time.(DateTime))
             time_diff := time.diff(start, end)
             assert(time_diff >= 0)
-            secs := time.duration_seconds(time_diff)
+            secs = time.duration_seconds(time_diff)
             // if points have a delta greater than 30s it is counted as a pause
             if secs > 30.0 {
                 paused_time += secs
@@ -290,6 +290,8 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
         }
         // first make sure that there is a speed value
         ema_speed := alpha * track.points[i].speed + (1 - alpha) * prev.speed
+
+        if ema_speed > track.max_speed do track.max_speed = ema_speed
 
         track.points[i].elevation = ema_elev
         track.points[i].speed = ema_speed

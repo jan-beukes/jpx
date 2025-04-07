@@ -9,14 +9,14 @@ import "vendor:raylib/rlgl"
 import rl "vendor:raylib"
 
 BORDER_THICK :: 1.2
+PANEL_BORDER_THICK :: 3.0
 PADDING_FACTOR :: 0.15
 FADE_AMMOUNT :: 0.9
 
-TOGGLE_INNER_SCALE :: 0.8
-
 PANEL_ANIM_TIME :: 0.3
 PANEL_HANDLE_SCALE :: 0.3
-PANEL_BORDER_THICK :: 3.0
+
+TOGGLE_INNER_SCALE :: 0.8
 
 STATS_PANEL_MAX_SCALE :: 0.5
 PLOT_PANEL_MAX_SCALE :: 0.7
@@ -107,7 +107,7 @@ gui_begin :: proc() {
 
 // Handles the plot panel
 gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) {
-    // this is makes the forces auto close nicer so im just gonna keep that state in the function
+    // this makes the forced auto close nicer so im just gonna keep that state in the function
     @static was_force_closed: bool
 
     // Panel prelude
@@ -154,14 +154,18 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     /*********
     * PLOTS
     **********/
-    @static hr_active: bool
-    @static speed_active: bool
+
+    // the plot toggle state
+    @static hr_plot_active: bool
+    @static speed_plot_active: bool
 
     padding := rect.height * 0.03
     font_size := rect.height * 0.06
 
+    // leaves space for values and toggles
+    axis_rect_y := rect.y + 2 * font_size + 3 * padding
+
     // Draw the axes
-    axis_rect_y := rect.y + 2 * font_size + 2 * padding
     axis_rect := rl.Rectangle {
         x = rect.x + padding,
         y = axis_rect_y,
@@ -200,16 +204,58 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
 
     //---Drawing Plots---
     PLOT_LINE_THICK :: 2.5
+    MAX_PLOT_POINTS :: 4096
     rlgl.SetLineWidth(PLOT_LINE_THICK)
 
-    point_count: int = min(len(track.points), min(int(inner_rect.width), 4096))
-    point_step := f32(len(track.points)) / f32(point_count)
-    dx := inner_rect.width / f32(point_count)
+    has_time := track.duration != 0
+    has_hr := track.avg_hr != 0
+    has_speed := track.avg_speed != 0
 
-    points_buf: [4096]rl.Vector2
+    points_buf: [MAX_PLOT_POINTS]rl.Vector2
+
+    draw_plot :: proc(rect: rl.Rectangle, points_buf: []rl.Vector2, track: Gps_Track, plot_data: ExtData) {
+        points := track.points[:]
+        point_count: int = min(len(points), min(int(rect.width), MAX_PLOT_POINTS))
+        point_step := f32(len(points)) / f32(point_count)
+        dx := rect.width / f32(point_count)
+
+        count: int
+        point_idx: f32 = 0.0
+        for i in 0..<point_count {
+            assert(int(point_idx) < len(points))
+            point := points[int(point_idx)]
+
+            x := rect.x + f32(i) * dx
+            scale: f32
+            switch plot_data {
+            case .Heartrate:
+                scale = f32(point.hr) / f32(track.max_hr)
+            case .Speed:
+                scale = point.speed / track.max_speed
+            case .Cadence: unimplemented("Cadence plot")
+            case .Distance: unreachable()
+            }
+            y := rect.y + rect.height - scale * rect.height
+
+            points_buf[count] = {x, y}
+            count += 1
+            point_idx += point_step
+        }
+        color: rl.Color
+        switch plot_data {
+        case .Heartrate: color = rl.RED
+        case .Speed: color = rl.BLUE
+        case .Cadence: unimplemented("Cadence plot")
+        case .Distance: unimplemented()
+        }
+        rl.DrawLineStrip(raw_data(points_buf[:count]), auto_cast count, color)
+    }
 
     //---Elevation---
     {
+        point_count: int = min(len(track.points), min(int(inner_rect.width), 4096))
+        point_step := f32(len(track.points)) / f32(point_count)
+        dx := inner_rect.width / f32(point_count)
 
         y0 := inner_rect.y + inner_rect.height
         prev_point := track.points[0]
@@ -237,24 +283,23 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         }
     }
 
+    // next plots are not guaranteed
+    plot_count := 0
+
     //---Heart Rate---
-    if hr_active && track.avg_hr != 0 {
-        count: int
-        point_idx: f32 = 0.0
-        for i in 0..<point_count {
-            assert(int(point_idx) < len(track.points))
-            point := track.points[int(point_idx)]
-
-            x := inner_rect.x + f32(i) * dx
-            scale := f32(point.hr) / f32(track.max_hr)
-            y := inner_rect.y + inner_rect.height - scale * inner_rect.height
-
-            points_buf[count] = {x, y}
-            count += 1
-            point_idx += point_step
+    if has_hr {
+        plot_count += 1
+        if hr_plot_active {
+            draw_plot(inner_rect, points_buf[:], track, .Heartrate)
         }
-        rl.DrawLineStrip(raw_data(points_buf[:count]), auto_cast count, rl.RED)
+    }
 
+    //---Speed---
+    if has_speed {
+        plot_count += 1
+        if speed_plot_active {
+            draw_plot(inner_rect, points_buf[:], track, .Speed)
+        }
     }
 
     rlgl.DrawRenderBatchActive()
@@ -264,13 +309,27 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     // values are rendered depending on the selected point in the track, if nothing is selected
     // default values are shown in the value text
 
-    values_count := 3
+    distance_text: cstring = "Distance"
+    gain_text: cstring = "Gain"
+    time_text: cstring = "Time"
+
+    // For centering these values I think just using the known top text is good enough?
+    value_count := 2
+    top_total_text_width := measure_text(distance_text, font_size) + measure_text(gain_text, font_size)
+    if has_time {
+        value_count += 1
+        top_total_text_width += measure_text(time_text, font_size)
+    }
 
     toggle_radius := font_size * 0.7
-    toggles_width := f32(values_count) * toggle_radius + f32(values_count - 1) * padding
+    value_padding := padding * 2.0
+    toggle_padding := 4  * toggle_radius
 
-    cursor := rl.Vector2{axis_rect.x + (axis_rect.width - toggles_width) * 0.5,
-        axis_rect.y - font_size}
+    total_values_width := top_total_text_width + f32(plot_count) * (toggle_radius) + f32(plot_count - 1) *
+        toggle_padding + f32(value_count + plot_count - 1) * value_padding
+
+    cursor := rl.Vector2{axis_rect.x + (axis_rect.width - total_values_width) * 0.5,
+        axis_rect.y - font_size - padding}
 
     text: cstring
     text_width: f32
@@ -282,27 +341,39 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     text_width = measure_text(text, font_size)
     draw_text(text, cursor, font_size, WHITE)
 
-    text = "Distance"
     mid_x = cursor.x + text_width * 0.5
-    text_width = measure_text(text, font_size)
+    text_width = measure_text(distance_text, font_size)
     pos = rl.Vector2{mid_x - text_width * 0.5, cursor.y - 1.5*font_size}
-    draw_text(text, pos, font_size, PEACH)
+    draw_text(distance_text, pos, font_size, PEACH)
 
-    // elevation
-    cursor.x += text_width + padding
+    // Elevation
+    cursor.x += text_width + value_padding
     text = rl.TextFormat("%.0fm", track.elevation_gain)
     text_width = measure_text(text, font_size)
     draw_text(text, cursor, font_size, WHITE)
 
-    text = "Gain"
     mid_x = cursor.x + text_width * 0.5
-    text_width = measure_text(text, font_size)
+    text_width = measure_text(gain_text, font_size)
     pos = rl.Vector2{mid_x - text_width * 0.5, cursor.y - 1.5*font_size}
-    draw_text(text, pos, font_size, PEACH)
+    draw_text(gain_text, pos, font_size, PEACH)
+
+    // Time
+    if has_time {
+        cursor.x += text_width + value_padding
+        hours, mins, _ := time.clock_from_duration(track.duration)
+        text = rl.TextFormat("%dh %dm", hours, mins)
+        text_width = measure_text(text, font_size)
+        draw_text(text, cursor, font_size, WHITE)
+
+        mid_x = cursor.x + text_width * 0.5
+        text_width = measure_text(time_text, font_size)
+        pos = rl.Vector2{mid_x - text_width * 0.5, cursor.y - 1.5*font_size}
+        draw_text(time_text, pos, font_size, PEACH)
+    }
+    cursor.x += text_width + toggle_radius + value_padding
 
     // Heartrate
-    if track.avg_hr != 0.0 {
-        cursor.x += text_width + padding
+    if has_hr {
         text = rl.TextFormat("%dbpm", track.avg_hr)
         text_width = measure_text(text, font_size)
         draw_text(text, cursor, font_size, WHITE)
@@ -310,10 +381,37 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         mid_x = cursor.x + text_width * 0.5
         pos = rl.Vector2{mid_x, cursor.y - font_size}
 
-        if gui_toggle(pos, toggle_radius, rl.RED, &hr_active) {
+        if gui_toggle(pos, toggle_radius, rl.RED, &hr_plot_active) {
             gui_mouse_cursor = .POINTING_HAND
         }
     }
+
+    // Speed
+    if has_speed {
+        width := has_hr ? toggle_padding : text_width
+        cursor.x += width + value_padding
+
+        // calc units based on type
+        if track.type == .Running {
+            mpk := (1.0 / track.avg_speed) * (1000.0 / 60.0)
+            min := i32(mpk)
+            sec := i32(60 * (mpk - math.trunc(mpk)))
+            text = rl.TextFormat("%d'%2d\"", min, sec)
+        } else {
+            kph := (track.avg_speed * 3600) / 1000.0
+            text = rl.TextFormat("%.1fkph", kph)
+        }
+        text_width = measure_text(text, font_size)
+        draw_text(text, cursor, font_size, WHITE)
+
+        // toggle
+        mid_x = cursor.x + text_width * 0.5
+        pos = rl.Vector2{mid_x, cursor.y - font_size}
+        if gui_toggle(pos, toggle_radius, rl.BLUE, &speed_plot_active) {
+            gui_mouse_cursor = .POINTING_HAND
+        }
+    }
+
 
 
     // Axis lines drawn after the plot lines
@@ -402,7 +500,7 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     if track.duration != 0 {
         cursor.y += 2 * font_size + padding
         hours, mins, _ := time.clock_from_duration(track.duration)
-        text = rl.TextFormat("Elapsed time: %dh %dm", hours, mins)
+        text = rl.TextFormat("Elapsed time: %dh %2dm", hours, mins)
         draw_text(text, cursor, font_size, WHITE)
     }
 

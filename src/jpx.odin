@@ -110,6 +110,8 @@ draw_track :: proc() {
 
     // set the line thickness for the track and draw the render batch
     // we don't want this thickness for the endpoints or UI
+
+    // ISSUE: On mac and some browsers OpenGL glLineWidth is not supported for values != 1.0
     rlgl.SetLineWidth(TRACK_LINE_THICK)
     rl.DrawLineStrip(raw_data(state.draw_track.points), i32(len(state.draw_track.points)),
         state.draw_track.color)
@@ -489,6 +491,8 @@ handle_input :: proc() {
 }
 
 update :: proc() {
+    //log.debug(rl.GetFPS())
+
     // only evict when we are near the limit
     if rl.GetTime() - state.last_eviction > CACHE_TIMEOUT {
         evict_cache(&state.cache, state.map_screen)
@@ -540,7 +544,9 @@ should_run :: proc() -> bool {
 }
 
 shutdown :: proc() {
-    rl.CloseWindow()
+    when ODIN_OS != .Windows {
+        rl.CloseWindow()
+    }
     deinit_platform()
 }
 
@@ -548,12 +554,12 @@ init :: proc() {
 
     // Raylib setup
     rl.SetTraceLogLevel(.ERROR)
-    rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
+    rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
     rl.SetWindowMinSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
     rl.SetWindowIcon(rl.LoadImageFromMemory(".png", raw_data(ICON_DATA), i32(len(ICON_DATA))))
     when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
-    // rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
+    //rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
     rlgl.EnableSmoothLines()
 
     g_font = rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 96, nil, 0)

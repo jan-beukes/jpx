@@ -34,11 +34,15 @@ rm $OUT_DIR/jpx.wasm.o
 echo "Web build created in ${OUT_DIR}"
 
 # create commit and push to web build
-if [ "$1" = "push" ]; then
-    LAST_COMMIT=$(git rev-parse HEAD)
-    cd $OUT_DIR
+if [ "$#" -gt 0 ]; then
+    if [ "$1" = "push" ]; then
+        LAST_COMMIT=$(git rev-parse HEAD)
+        cd $OUT_DIR
 
-    git add .
-    git commit -m "Changes based on $LAST_COMMIT"
-    git push
+        git add .
+        git commit -m "Changes based on $LAST_COMMIT"
+        git push
+
+        echo web build pushed
+    fi
 fi
