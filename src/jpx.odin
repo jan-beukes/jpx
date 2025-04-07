@@ -559,7 +559,7 @@ init :: proc() {
     rl.SetWindowMinSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
     rl.SetWindowIcon(rl.LoadImageFromMemory(".png", raw_data(ICON_DATA), i32(len(ICON_DATA))))
     when !ODIN_DEBUG do rl.SetExitKey(.KEY_NULL)
-    //rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
+    rl.SetTargetFPS(rl.GetMonitorRefreshRate(rl.GetCurrentMonitor()))
     rlgl.EnableSmoothLines()
 
     g_font = rl.LoadFontFromMemory(".ttf", raw_data(FONT_DATA), i32(len(FONT_DATA)), 96, nil, 0)
