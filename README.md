@@ -10,6 +10,9 @@
   </p>
 </p>
 
+![](res/Screenshot.png)
+
+
 ## Usage
 ```
 jpx [file] [OPTIONS]
