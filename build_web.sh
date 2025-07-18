@@ -15,7 +15,7 @@ export EMSDK_QUIET=1
 # The emcc call will be fed the actual raylib library file. That stuff will end
 # up in env.o
 #
-odin build src/main_web -target:js_wasm32 -build-mode:obj -define:RAYLIB_WASM_LIB=env.o -out:$OUT_DIR/jpx -debug
+odin build src/main_web -target:js_wasm32 -build-mode:obj -define:RAYLIB_WASM_LIB=env.o -out:$OUT_DIR/jpx.wasm.o -debug
 
 ODIN_PATH=$(odin root)
 
