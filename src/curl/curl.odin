@@ -295,113 +295,111 @@ PAUSE_CONT :: (PAUSE_RECV_CONT | PAUSE_SEND_CONT)
 time_t :: __time_t
 
 
-
 __fd_mask :: c.long
 
 fd_set :: struct {
-    __fds_bits : [1024 / (8 * (int)(size_of(__fd_mask)))]__fd_mask,
+    __fds_bits: [1024 / (8 * (int)(size_of(__fd_mask)))]__fd_mask,
 }
-
 
 
 socket_t :: int
 
 sslbackend :: c.int
 /*  <ENUM> :: enum { */
-SSLBACKEND_NONE                :: 0
-SSLBACKEND_OPENSSL             :: 1
-SSLBACKEND_GNUTLS              :: 2
-SSLBACKEND_NSS                 :: 3
-SSLBACKEND_OBSOLETE4           :: 4
-SSLBACKEND_GSKIT               :: 5
-SSLBACKEND_POLARSSL            :: 6
-SSLBACKEND_WOLFSSL             :: 7
-SSLBACKEND_SCHANNEL            :: 8
-SSLBACKEND_SECURETRANSPORT     :: 9
-SSLBACKEND_AXTLS               :: 10
-SSLBACKEND_MBEDTLS             :: 11
-SSLBACKEND_MESALINK            :: 12
-SSLBACKEND_BEARSSL             :: 13
-SSLBACKEND_RUSTLS              :: 14
+SSLBACKEND_NONE :: 0
+SSLBACKEND_OPENSSL :: 1
+SSLBACKEND_GNUTLS :: 2
+SSLBACKEND_NSS :: 3
+SSLBACKEND_OBSOLETE4 :: 4
+SSLBACKEND_GSKIT :: 5
+SSLBACKEND_POLARSSL :: 6
+SSLBACKEND_WOLFSSL :: 7
+SSLBACKEND_SCHANNEL :: 8
+SSLBACKEND_SECURETRANSPORT :: 9
+SSLBACKEND_AXTLS :: 10
+SSLBACKEND_MBEDTLS :: 11
+SSLBACKEND_MESALINK :: 12
+SSLBACKEND_BEARSSL :: 13
+SSLBACKEND_RUSTLS :: 14
 /* } */
 
 httppost :: struct {
-    next           : ^httppost,
-    name           : cstring,
-    namelength     : c.long,
-    contents       : cstring,
-    contentslength : c.long,
-    buffer         : cstring,
-    bufferlength   : c.long,
-    contenttype    : cstring,
-    contentheader  : ^slist,
-    more           : ^httppost,
-    flags          : c.long,
-    showfilename   : cstring,
-    userp          : rawptr,
-    contentlen     : off_t,
+    next:           ^httppost,
+    name:           cstring,
+    namelength:     c.long,
+    contents:       cstring,
+    contentslength: c.long,
+    buffer:         cstring,
+    bufferlength:   c.long,
+    contenttype:    cstring,
+    contentheader:  ^slist,
+    more:           ^httppost,
+    flags:          c.long,
+    showfilename:   cstring,
+    userp:          rawptr,
+    contentlen:     off_t,
 }
 
 curlfiletype :: c.int
 /*  <ENUM> :: enum { */
-FILETYPE_FILE             :: 0
-FILETYPE_DIRECTORY        :: 1
-FILETYPE_SYMLINK          :: 2
-FILETYPE_DEVICE_BLOCK     :: 3
-FILETYPE_DEVICE_CHAR      :: 4
-FILETYPE_NAMEDPIPE        :: 5
-FILETYPE_SOCKET           :: 6
-FILETYPE_DOOR             :: 7
-FILETYPE_UNKNOWN          :: 8
+FILETYPE_FILE :: 0
+FILETYPE_DIRECTORY :: 1
+FILETYPE_SYMLINK :: 2
+FILETYPE_DEVICE_BLOCK :: 3
+FILETYPE_DEVICE_CHAR :: 4
+FILETYPE_NAMEDPIPE :: 5
+FILETYPE_SOCKET :: 6
+FILETYPE_DOOR :: 7
+FILETYPE_UNKNOWN :: 8
 /* } */
 
-seek_callback :: (proc(instream : rawptr, offset : off_t, origin : int) -> int)
+seek_callback :: (proc(instream: rawptr, offset: off_t, origin: int) -> int)
 
-read_callback :: (proc(buffer : cstring, size : uint, nitems : uint, instream : rawptr) -> uint)
+read_callback :: (proc(buffer: cstring, size: uint, nitems: uint, instream: rawptr) -> uint)
 
 curlsocktype :: c.int
 /*  <ENUM> :: enum { */
-SOCKTYPE_IPCXN      :: 0
-SOCKTYPE_ACCEPT     :: 1
-SOCKTYPE_LAST       :: 2
+SOCKTYPE_IPCXN :: 0
+SOCKTYPE_ACCEPT :: 1
+SOCKTYPE_LAST :: 2
 /* } */
 
 curlioerr :: c.int
 /*  <ENUM> :: enum { */
-IOE_OK              :: 0
-IOE_UNKNOWNCMD      :: 1
-IOE_FAILRESTART     :: 2
-IOE_LAST            :: 3
+IOE_OK :: 0
+IOE_UNKNOWNCMD :: 1
+IOE_FAILRESTART :: 2
+IOE_LAST :: 3
 /* } */
 
 curliocmd :: c.int
 /*  <ENUM> :: enum { */
-IOCMD_NOP             :: 0
-IOCMD_RESTARTREAD     :: 1
-IOCMD_LAST            :: 2
+IOCMD_NOP :: 0
+IOCMD_RESTARTREAD :: 1
+IOCMD_LAST :: 2
 /* } */
 
-malloc_callback :: (proc(size : uint) -> rawptr)
+malloc_callback :: (proc(size: uint) -> rawptr)
 
 infotype :: c.int
 /*  <ENUM> :: enum { */
-INFO_TEXT             :: 0
-INFO_HEADER_IN        :: 1
-INFO_HEADER_OUT       :: 2
-INFO_DATA_IN          :: 3
-INFO_DATA_OUT         :: 4
-INFO_SSL_DATA_IN      :: 5
-INFO_SSL_DATA_OUT     :: 6
-INFO_END              :: 7
+INFO_TEXT :: 0
+INFO_HEADER_IN :: 1
+INFO_HEADER_OUT :: 2
+INFO_DATA_IN :: 3
+INFO_DATA_OUT :: 4
+INFO_SSL_DATA_IN :: 5
+INFO_SSL_DATA_OUT :: 6
+INFO_END :: 7
 /* } */
 
-free_callback :: proc(ptr : rawptr)
+free_callback :: proc(ptr: rawptr)
 
-realloc_callback :: (proc(ptr : rawptr, size : uint) -> rawptr)
+realloc_callback :: (proc(ptr: rawptr, size: uint) -> rawptr)
 
-strdup_callback :: (proc(str : cstring) -> cstring)
+strdup_callback :: (proc(str: cstring) -> cstring)
 
-calloc_callback :: (proc(nmemb : uint, size : uint) -> rawptr)
+calloc_callback :: (proc(nmemb: uint, size: uint) -> rawptr)
 
 off_t :: c.long
 
@@ -509,780 +507,769 @@ CURLcode :: enum c.int {
 }
 
 slist :: struct {
-    data : cstring,
-    next : ^slist,
+    data: cstring,
+    next: ^slist,
 }
 
 CURLproxycode :: c.int
 /*  <ENUM> :: enum { */
-PX_OK                                   :: 0
-PX_BAD_ADDRESS_TYPE                     :: 1
-PX_BAD_VERSION                          :: 2
-PX_CLOSED                               :: 3
-PX_GSSAPI                               :: 4
-PX_GSSAPI_PERMSG                        :: 5
-PX_GSSAPI_PROTECTION                    :: 6
-PX_IDENTD                               :: 7
-PX_IDENTD_DIFFER                        :: 8
-PX_LONG_HOSTNAME                        :: 9
-PX_LONG_PASSWD                          :: 10
-PX_LONG_USER                            :: 11
-PX_NO_AUTH                              :: 12
-PX_RECV_ADDRESS                         :: 13
-PX_RECV_AUTH                            :: 14
-PX_RECV_CONNECT                         :: 15
-PX_RECV_REQACK                          :: 16
-PX_REPLY_ADDRESS_TYPE_NOT_SUPPORTED     :: 17
-PX_REPLY_COMMAND_NOT_SUPPORTED          :: 18
-PX_REPLY_CONNECTION_REFUSED             :: 19
-PX_REPLY_GENERAL_SERVER_FAILURE         :: 20
-PX_REPLY_HOST_UNREACHABLE               :: 21
-PX_REPLY_NETWORK_UNREACHABLE            :: 22
-PX_REPLY_NOT_ALLOWED                    :: 23
-PX_REPLY_TTL_EXPIRED                    :: 24
-PX_REPLY_UNASSIGNED                     :: 25
-PX_REQUEST_FAILED                       :: 26
-PX_RESOLVE_HOST                         :: 27
-PX_SEND_AUTH                            :: 28
-PX_SEND_CONNECT                         :: 29
-PX_SEND_REQUEST                         :: 30
-PX_UNKNOWN_FAIL                         :: 31
-PX_UNKNOWN_MODE                         :: 32
-PX_USER_REJECTED                        :: 33
-PX_LAST                                 :: 34
+PX_OK :: 0
+PX_BAD_ADDRESS_TYPE :: 1
+PX_BAD_VERSION :: 2
+PX_CLOSED :: 3
+PX_GSSAPI :: 4
+PX_GSSAPI_PERMSG :: 5
+PX_GSSAPI_PROTECTION :: 6
+PX_IDENTD :: 7
+PX_IDENTD_DIFFER :: 8
+PX_LONG_HOSTNAME :: 9
+PX_LONG_PASSWD :: 10
+PX_LONG_USER :: 11
+PX_NO_AUTH :: 12
+PX_RECV_ADDRESS :: 13
+PX_RECV_AUTH :: 14
+PX_RECV_CONNECT :: 15
+PX_RECV_REQACK :: 16
+PX_REPLY_ADDRESS_TYPE_NOT_SUPPORTED :: 17
+PX_REPLY_COMMAND_NOT_SUPPORTED :: 18
+PX_REPLY_CONNECTION_REFUSED :: 19
+PX_REPLY_GENERAL_SERVER_FAILURE :: 20
+PX_REPLY_HOST_UNREACHABLE :: 21
+PX_REPLY_NETWORK_UNREACHABLE :: 22
+PX_REPLY_NOT_ALLOWED :: 23
+PX_REPLY_TTL_EXPIRED :: 24
+PX_REPLY_UNASSIGNED :: 25
+PX_REQUEST_FAILED :: 26
+PX_RESOLVE_HOST :: 27
+PX_SEND_AUTH :: 28
+PX_SEND_CONNECT :: 29
+PX_SEND_REQUEST :: 30
+PX_UNKNOWN_FAIL :: 31
+PX_UNKNOWN_MODE :: 32
+PX_USER_REJECTED :: 33
+PX_LAST :: 34
 /* } */
 
 proxytype :: c.int
 /*  <ENUM> :: enum { */
-PROXY_HTTP                :: 0
-PROXY_HTTP_1_0            :: 1
-PROXY_HTTPS               :: 2
-PROXY_SOCKS4              :: 4
-PROXY_SOCKS5              :: 5
-PROXY_SOCKS4A             :: 6
-PROXY_SOCKS5_HOSTNAME     :: 7
+PROXY_HTTP :: 0
+PROXY_HTTP_1_0 :: 1
+PROXY_HTTPS :: 2
+PROXY_SOCKS4 :: 4
+PROXY_SOCKS5 :: 5
+PROXY_SOCKS4A :: 6
+PROXY_SOCKS5_HOSTNAME :: 7
 /* } */
 
 usessl :: c.int
 /*  <ENUM> :: enum { */
-USESSL_NONE        :: 0
-USESSL_TRY         :: 1
-USESSL_CONTROL     :: 2
-USESSL_ALL         :: 3
-USESSL_LAST        :: 4
+USESSL_NONE :: 0
+USESSL_TRY :: 1
+USESSL_CONTROL :: 2
+USESSL_ALL :: 3
+USESSL_LAST :: 4
 /* } */
 
 ftpccc :: c.int
 /*  <ENUM> :: enum { */
-FTPSSL_CCC_NONE        :: 0
-FTPSSL_CCC_PASSIVE     :: 1
-FTPSSL_CCC_ACTIVE      :: 2
-FTPSSL_CCC_LAST        :: 3
+FTPSSL_CCC_NONE :: 0
+FTPSSL_CCC_PASSIVE :: 1
+FTPSSL_CCC_ACTIVE :: 2
+FTPSSL_CCC_LAST :: 3
 /* } */
 
 ftpauth :: c.int
 /*  <ENUM> :: enum { */
-FTPAUTH_DEFAULT     :: 0
-FTPAUTH_SSL         :: 1
-FTPAUTH_TLS         :: 2
-FTPAUTH_LAST        :: 3
+FTPAUTH_DEFAULT :: 0
+FTPAUTH_SSL :: 1
+FTPAUTH_TLS :: 2
+FTPAUTH_LAST :: 3
 /* } */
 
 ftpcreatedir :: c.int
 /*  <ENUM> :: enum { */
-FTP_CREATE_DIR_NONE      :: 0
-FTP_CREATE_DIR           :: 1
-FTP_CREATE_DIR_RETRY     :: 2
-FTP_CREATE_DIR_LAST      :: 3
+FTP_CREATE_DIR_NONE :: 0
+FTP_CREATE_DIR :: 1
+FTP_CREATE_DIR_RETRY :: 2
+FTP_CREATE_DIR_LAST :: 3
 /* } */
 
 ftpmethod :: c.int
 /*  <ENUM> :: enum { */
-FTPMETHOD_DEFAULT       :: 0
-FTPMETHOD_MULTICWD      :: 1
-FTPMETHOD_NOCWD         :: 2
-FTPMETHOD_SINGLECWD     :: 3
-FTPMETHOD_LAST          :: 4
+FTPMETHOD_DEFAULT :: 0
+FTPMETHOD_MULTICWD :: 1
+FTPMETHOD_NOCWD :: 2
+FTPMETHOD_SINGLECWD :: 3
+FTPMETHOD_LAST :: 4
 /* } */
 
 CURLSTScode :: c.int
 /*  <ENUM> :: enum { */
-STS_OK       :: 0
-STS_DONE     :: 1
-STS_FAIL     :: 2
+STS_OK :: 0
+STS_DONE :: 1
+STS_FAIL :: 2
 /* } */
 
 CURLoption :: c.int
 /*  <ENUM> :: enum { */
-OPT_WRITEDATA                      :: 10000 + 1
-OPT_URL                            :: 10000 + 2
-OPT_PORT                           :: 0 + 3
-OPT_PROXY                          :: 10000 + 4
-OPT_USERPWD                        :: 10000 + 5
-OPT_PROXYUSERPWD                   :: 10000 + 6
-OPT_RANGE                          :: 10000 + 7
-OPT_READDATA                       :: 10000 + 9
-OPT_ERRORBUFFER                    :: 10000 + 10
-OPT_WRITEFUNCTION                  :: 20000 + 11
-OPT_READFUNCTION                   :: 20000 + 12
-OPT_TIMEOUT                        :: 0 + 13
-OPT_INFILESIZE                     :: 0 + 14
-OPT_POSTFIELDS                     :: 10000 + 15
-OPT_REFERER                        :: 10000 + 16
-OPT_FTPPORT                        :: 10000 + 17
-OPT_USERAGENT                      :: 10000 + 18
-OPT_LOW_SPEED_LIMIT                :: 0 + 19
-OPT_LOW_SPEED_TIME                 :: 0 + 20
-OPT_RESUME_FROM                    :: 0 + 21
-OPT_COOKIE                         :: 10000 + 22
-OPT_HTTPHEADER                     :: 10000 + 23
-OPT_HTTPPOST                       :: 10000 + 24
-OPT_SSLCERT                        :: 10000 + 25
-OPT_KEYPASSWD                      :: 10000 + 26
-OPT_CRLF                           :: 0 + 27
-OPT_QUOTE                          :: 10000 + 28
-OPT_HEADERDATA                     :: 10000 + 29
-OPT_COOKIEFILE                     :: 10000 + 31
-OPT_SSLVERSION                     :: 0 + 32
-OPT_TIMECONDITION                  :: 0 + 33
-OPT_TIMEVALUE                      :: 0 + 34
-OPT_CUSTOMREQUEST                  :: 10000 + 36
-OPT_STDERR                         :: 10000 + 37
-OPT_POSTQUOTE                      :: 10000 + 39
-OPT_OBSOLETE40                     :: 10000 + 40
-OPT_VERBOSE                        :: 0 + 41
-OPT_HEADER                         :: 0 + 42
-OPT_NOPROGRESS                     :: 0 + 43
-OPT_NOBODY                         :: 0 + 44
-OPT_FAILONERROR                    :: 0 + 45
-OPT_UPLOAD                         :: 0 + 46
-OPT_POST                           :: 0 + 47
-OPT_DIRLISTONLY                    :: 0 + 48
-OPT_APPEND                         :: 0 + 50
-OPT_NETRC                          :: 0 + 51
-OPT_FOLLOWLOCATION                 :: 0 + 52
-OPT_TRANSFERTEXT                   :: 0 + 53
-OPT_PUT                            :: 0 + 54
-OPT_PROGRESSFUNCTION               :: 20000 + 56
-OPT_XFERINFODATA                   :: 10000 + 57
-OPT_AUTOREFERER                    :: 0 + 58
-OPT_PROXYPORT                      :: 0 + 59
-OPT_POSTFIELDSIZE                  :: 0 + 60
-OPT_HTTPPROXYTUNNEL                :: 0 + 61
-OPT_INTERFACE                      :: 10000 + 62
-OPT_KRBLEVEL                       :: 10000 + 63
-OPT_SSL_VERIFYPEER                 :: 0 + 64
-OPT_CAINFO                         :: 10000 + 65
-OPT_MAXREDIRS                      :: 0 + 68
-OPT_FILETIME                       :: 0 + 69
-OPT_TELNETOPTIONS                  :: 10000 + 70
-OPT_MAXCONNECTS                    :: 0 + 71
-OPT_OBSOLETE72                     :: 0 + 72
-OPT_FRESH_CONNECT                  :: 0 + 74
-OPT_FORBID_REUSE                   :: 0 + 75
-OPT_RANDOM_FILE                    :: 10000 + 76
-OPT_EGDSOCKET                      :: 10000 + 77
-OPT_CONNECTTIMEOUT                 :: 0 + 78
-OPT_HEADERFUNCTION                 :: 20000 + 79
-OPT_HTTPGET                        :: 0 + 80
-OPT_SSL_VERIFYHOST                 :: 0 + 81
-OPT_COOKIEJAR                      :: 10000 + 82
-OPT_SSL_CIPHER_LIST                :: 10000 + 83
-OPT_HTTP_VERSION                   :: 0 + 84
-OPT_FTP_USE_EPSV                   :: 0 + 85
-OPT_SSLCERTTYPE                    :: 10000 + 86
-OPT_SSLKEY                         :: 10000 + 87
-OPT_SSLKEYTYPE                     :: 10000 + 88
-OPT_SSLENGINE                      :: 10000 + 89
-OPT_SSLENGINE_DEFAULT              :: 0 + 90
-OPT_DNS_USE_GLOBAL_CACHE           :: 0 + 91
-OPT_DNS_CACHE_TIMEOUT              :: 0 + 92
-OPT_PREQUOTE                       :: 10000 + 93
-OPT_DEBUGFUNCTION                  :: 20000 + 94
-OPT_DEBUGDATA                      :: 10000 + 95
-OPT_COOKIESESSION                  :: 0 + 96
-OPT_CAPATH                         :: 10000 + 97
-OPT_BUFFERSIZE                     :: 0 + 98
-OPT_NOSIGNAL                       :: 0 + 99
-OPT_SHARE                          :: 10000 + 100
-OPT_PROXYTYPE                      :: 0 + 101
-OPT_ACCEPT_ENCODING                :: 10000 + 102
-OPT_PRIVATE                        :: 10000 + 103
-OPT_HTTP200ALIASES                 :: 10000 + 104
-OPT_UNRESTRICTED_AUTH              :: 0 + 105
-OPT_FTP_USE_EPRT                   :: 0 + 106
-OPT_HTTPAUTH                       :: 0 + 107
-OPT_SSL_CTX_FUNCTION               :: 20000 + 108
-OPT_SSL_CTX_DATA                   :: 10000 + 109
-OPT_FTP_CREATE_MISSING_DIRS        :: 0 + 110
-OPT_PROXYAUTH                      :: 0 + 111
-OPT_FTP_RESPONSE_TIMEOUT           :: 0 + 112
-OPT_IPRESOLVE                      :: 0 + 113
-OPT_MAXFILESIZE                    :: 0 + 114
-OPT_INFILESIZE_LARGE               :: 30000 + 115
-OPT_RESUME_FROM_LARGE              :: 30000 + 116
-OPT_MAXFILESIZE_LARGE              :: 30000 + 117
-OPT_NETRC_FILE                     :: 10000 + 118
-OPT_USE_SSL                        :: 0 + 119
-OPT_POSTFIELDSIZE_LARGE            :: 30000 + 120
-OPT_TCP_NODELAY                    :: 0 + 121
-OPT_FTPSSLAUTH                     :: 0 + 129
-OPT_IOCTLFUNCTION                  :: 20000 + 130
-OPT_IOCTLDATA                      :: 10000 + 131
-OPT_FTP_ACCOUNT                    :: 10000 + 134
-OPT_COOKIELIST                     :: 10000 + 135
-OPT_IGNORE_CONTENT_LENGTH          :: 0 + 136
-OPT_FTP_SKIP_PASV_IP               :: 0 + 137
-OPT_FTP_FILEMETHOD                 :: 0 + 138
-OPT_LOCALPORT                      :: 0 + 139
-OPT_LOCALPORTRANGE                 :: 0 + 140
-OPT_CONNECT_ONLY                   :: 0 + 141
-OPT_CONV_FROM_NETWORK_FUNCTION     :: 20000 + 142
-OPT_CONV_TO_NETWORK_FUNCTION       :: 20000 + 143
-OPT_CONV_FROM_UTF8_FUNCTION        :: 20000 + 144
-OPT_MAX_SEND_SPEED_LARGE           :: 30000 + 145
-OPT_MAX_RECV_SPEED_LARGE           :: 30000 + 146
-OPT_FTP_ALTERNATIVE_TO_USER        :: 10000 + 147
-OPT_SOCKOPTFUNCTION                :: 20000 + 148
-OPT_SOCKOPTDATA                    :: 10000 + 149
-OPT_SSL_SESSIONID_CACHE            :: 0 + 150
-OPT_SSH_AUTH_TYPES                 :: 0 + 151
-OPT_SSH_PUBLIC_KEYFILE             :: 10000 + 152
-OPT_SSH_PRIVATE_KEYFILE            :: 10000 + 153
-OPT_FTP_SSL_CCC                    :: 0 + 154
-OPT_TIMEOUT_MS                     :: 0 + 155
-OPT_CONNECTTIMEOUT_MS              :: 0 + 156
-OPT_HTTP_TRANSFER_DECODING         :: 0 + 157
-OPT_HTTP_CONTENT_DECODING          :: 0 + 158
-OPT_NEW_FILE_PERMS                 :: 0 + 159
-OPT_NEW_DIRECTORY_PERMS            :: 0 + 160
-OPT_POSTREDIR                      :: 0 + 161
-OPT_SSH_HOST_PUBLIC_KEY_MD5        :: 10000 + 162
-OPT_OPENSOCKETFUNCTION             :: 20000 + 163
-OPT_OPENSOCKETDATA                 :: 10000 + 164
-OPT_COPYPOSTFIELDS                 :: 10000 + 165
-OPT_PROXY_TRANSFER_MODE            :: 0 + 166
-OPT_SEEKFUNCTION                   :: 20000 + 167
-OPT_SEEKDATA                       :: 10000 + 168
-OPT_CRLFILE                        :: 10000 + 169
-OPT_ISSUERCERT                     :: 10000 + 170
-OPT_ADDRESS_SCOPE                  :: 0 + 171
-OPT_CERTINFO                       :: 0 + 172
-OPT_USERNAME                       :: 10000 + 173
-OPT_PASSWORD                       :: 10000 + 174
-OPT_PROXYUSERNAME                  :: 10000 + 175
-OPT_PROXYPASSWORD                  :: 10000 + 176
-OPT_NOPROXY                        :: 10000 + 177
-OPT_TFTP_BLKSIZE                   :: 0 + 178
-OPT_SOCKS5_GSSAPI_SERVICE          :: 10000 + 179
-OPT_SOCKS5_GSSAPI_NEC              :: 0 + 180
-OPT_PROTOCOLS                      :: 0 + 181
-OPT_REDIR_PROTOCOLS                :: 0 + 182
-OPT_SSH_KNOWNHOSTS                 :: 10000 + 183
-OPT_SSH_KEYFUNCTION                :: 20000 + 184
-OPT_SSH_KEYDATA                    :: 10000 + 185
-OPT_MAIL_FROM                      :: 10000 + 186
-OPT_MAIL_RCPT                      :: 10000 + 187
-OPT_FTP_USE_PRET                   :: 0 + 188
-OPT_RTSP_REQUEST                   :: 0 + 189
-OPT_RTSP_SESSION_ID                :: 10000 + 190
-OPT_RTSP_STREAM_URI                :: 10000 + 191
-OPT_RTSP_TRANSPORT                 :: 10000 + 192
-OPT_RTSP_CLIENT_CSEQ               :: 0 + 193
-OPT_RTSP_SERVER_CSEQ               :: 0 + 194
-OPT_INTERLEAVEDATA                 :: 10000 + 195
-OPT_INTERLEAVEFUNCTION             :: 20000 + 196
-OPT_WILDCARDMATCH                  :: 0 + 197
-OPT_CHUNK_BGN_FUNCTION             :: 20000 + 198
-OPT_CHUNK_END_FUNCTION             :: 20000 + 199
-OPT_FNMATCH_FUNCTION               :: 20000 + 200
-OPT_CHUNK_DATA                     :: 10000 + 201
-OPT_FNMATCH_DATA                   :: 10000 + 202
-OPT_RESOLVE                        :: 10000 + 203
-OPT_TLSAUTH_USERNAME               :: 10000 + 204
-OPT_TLSAUTH_PASSWORD               :: 10000 + 205
-OPT_TLSAUTH_TYPE                   :: 10000 + 206
-OPT_TRANSFER_ENCODING              :: 0 + 207
-OPT_CLOSESOCKETFUNCTION            :: 20000 + 208
-OPT_CLOSESOCKETDATA                :: 10000 + 209
-OPT_GSSAPI_DELEGATION              :: 0 + 210
-OPT_DNS_SERVERS                    :: 10000 + 211
-OPT_ACCEPTTIMEOUT_MS               :: 0 + 212
-OPT_TCP_KEEPALIVE                  :: 0 + 213
-OPT_TCP_KEEPIDLE                   :: 0 + 214
-OPT_TCP_KEEPINTVL                  :: 0 + 215
-OPT_SSL_OPTIONS                    :: 0 + 216
-OPT_MAIL_AUTH                      :: 10000 + 217
-OPT_SASL_IR                        :: 0 + 218
-OPT_XFERINFOFUNCTION               :: 20000 + 219
-OPT_XOAUTH2_BEARER                 :: 10000 + 220
-OPT_DNS_INTERFACE                  :: 10000 + 221
-OPT_DNS_LOCAL_IP4                  :: 10000 + 222
-OPT_DNS_LOCAL_IP6                  :: 10000 + 223
-OPT_LOGIN_OPTIONS                  :: 10000 + 224
-OPT_SSL_ENABLE_NPN                 :: 0 + 225
-OPT_SSL_ENABLE_ALPN                :: 0 + 226
-OPT_EXPECT_100_TIMEOUT_MS          :: 0 + 227
-OPT_PROXYHEADER                    :: 10000 + 228
-OPT_HEADEROPT                      :: 0 + 229
-OPT_PINNEDPUBLICKEY                :: 10000 + 230
-OPT_UNIX_SOCKET_PATH               :: 10000 + 231
-OPT_SSL_VERIFYSTATUS               :: 0 + 232
-OPT_SSL_FALSESTART                 :: 0 + 233
-OPT_PATH_AS_IS                     :: 0 + 234
-OPT_PROXY_SERVICE_NAME             :: 10000 + 235
-OPT_SERVICE_NAME                   :: 10000 + 236
-OPT_PIPEWAIT                       :: 0 + 237
-OPT_DEFAULT_PROTOCOL               :: 10000 + 238
-OPT_STREAM_WEIGHT                  :: 0 + 239
-OPT_STREAM_DEPENDS                 :: 10000 + 240
-OPT_STREAM_DEPENDS_E               :: 10000 + 241
-OPT_TFTP_NO_OPTIONS                :: 0 + 242
-OPT_CONNECT_TO                     :: 10000 + 243
-OPT_TCP_FASTOPEN                   :: 0 + 244
-OPT_KEEP_SENDING_ON_ERROR          :: 0 + 245
-OPT_PROXY_CAINFO                   :: 10000 + 246
-OPT_PROXY_CAPATH                   :: 10000 + 247
-OPT_PROXY_SSL_VERIFYPEER           :: 0 + 248
-OPT_PROXY_SSL_VERIFYHOST           :: 0 + 249
-OPT_PROXY_SSLVERSION               :: 0 + 250
-OPT_PROXY_TLSAUTH_USERNAME         :: 10000 + 251
-OPT_PROXY_TLSAUTH_PASSWORD         :: 10000 + 252
-OPT_PROXY_TLSAUTH_TYPE             :: 10000 + 253
-OPT_PROXY_SSLCERT                  :: 10000 + 254
-OPT_PROXY_SSLCERTTYPE              :: 10000 + 255
-OPT_PROXY_SSLKEY                   :: 10000 + 256
-OPT_PROXY_SSLKEYTYPE               :: 10000 + 257
-OPT_PROXY_KEYPASSWD                :: 10000 + 258
-OPT_PROXY_SSL_CIPHER_LIST          :: 10000 + 259
-OPT_PROXY_CRLFILE                  :: 10000 + 260
-OPT_PROXY_SSL_OPTIONS              :: 0 + 261
-OPT_PRE_PROXY                      :: 10000 + 262
-OPT_PROXY_PINNEDPUBLICKEY          :: 10000 + 263
-OPT_ABSTRACT_UNIX_SOCKET           :: 10000 + 264
-OPT_SUPPRESS_CONNECT_HEADERS       :: 0 + 265
-OPT_REQUEST_TARGET                 :: 10000 + 266
-OPT_SOCKS5_AUTH                    :: 0 + 267
-OPT_SSH_COMPRESSION                :: 0 + 268
-OPT_MIMEPOST                       :: 10000 + 269
-OPT_TIMEVALUE_LARGE                :: 30000 + 270
-OPT_HAPPY_EYEBALLS_TIMEOUT_MS      :: 0 + 271
-OPT_RESOLVER_START_FUNCTION        :: 20000 + 272
-OPT_RESOLVER_START_DATA            :: 10000 + 273
-OPT_HAPROXYPROTOCOL                :: 0 + 274
-OPT_DNS_SHUFFLE_ADDRESSES          :: 0 + 275
-OPT_TLS13_CIPHERS                  :: 10000 + 276
-OPT_PROXY_TLS13_CIPHERS            :: 10000 + 277
-OPT_DISALLOW_USERNAME_IN_URL       :: 0 + 278
-OPT_DOH_URL                        :: 10000 + 279
-OPT_UPLOAD_BUFFERSIZE              :: 0 + 280
-OPT_UPKEEP_INTERVAL_MS             :: 0 + 281
-OPT_CURLU                          :: 10000 + 282
-OPT_TRAILERFUNCTION                :: 20000 + 283
-OPT_TRAILERDATA                    :: 10000 + 284
-OPT_HTTP09_ALLOWED                 :: 0 + 285
-OPT_ALTSVC_CTRL                    :: 0 + 286
-OPT_ALTSVC                         :: 10000 + 287
-OPT_MAXAGE_CONN                    :: 0 + 288
-OPT_SASL_AUTHZID                   :: 10000 + 289
-OPT_MAIL_RCPT_ALLLOWFAILS          :: 0 + 290
-OPT_SSLCERT_BLOB                   :: 40000 + 291
-OPT_SSLKEY_BLOB                    :: 40000 + 292
-OPT_PROXY_SSLCERT_BLOB             :: 40000 + 293
-OPT_PROXY_SSLKEY_BLOB              :: 40000 + 294
-OPT_ISSUERCERT_BLOB                :: 40000 + 295
-OPT_PROXY_ISSUERCERT               :: 10000 + 296
-OPT_PROXY_ISSUERCERT_BLOB          :: 40000 + 297
-OPT_SSL_EC_CURVES                  :: 10000 + 298
-OPT_HSTS_CTRL                      :: 0 + 299
-OPT_HSTS                           :: 10000 + 300
-OPT_HSTSREADFUNCTION               :: 20000 + 301
-OPT_HSTSREADDATA                   :: 10000 + 302
-OPT_HSTSWRITEFUNCTION              :: 20000 + 303
-OPT_HSTSWRITEDATA                  :: 10000 + 304
-OPT_AWS_SIGV4                      :: 10000 + 305
-OPT_DOH_SSL_VERIFYPEER             :: 0 + 306
-OPT_DOH_SSL_VERIFYHOST             :: 0 + 307
-OPT_DOH_SSL_VERIFYSTATUS           :: 0 + 308
-OPT_CAINFO_BLOB                    :: 40000 + 309
-OPT_PROXY_CAINFO_BLOB              :: 40000 + 310
-OPT_LASTENTRY                      :: 40311
+OPT_WRITEDATA :: 10000 + 1
+OPT_URL :: 10000 + 2
+OPT_PORT :: 0 + 3
+OPT_PROXY :: 10000 + 4
+OPT_USERPWD :: 10000 + 5
+OPT_PROXYUSERPWD :: 10000 + 6
+OPT_RANGE :: 10000 + 7
+OPT_READDATA :: 10000 + 9
+OPT_ERRORBUFFER :: 10000 + 10
+OPT_WRITEFUNCTION :: 20000 + 11
+OPT_READFUNCTION :: 20000 + 12
+OPT_TIMEOUT :: 0 + 13
+OPT_INFILESIZE :: 0 + 14
+OPT_POSTFIELDS :: 10000 + 15
+OPT_REFERER :: 10000 + 16
+OPT_FTPPORT :: 10000 + 17
+OPT_USERAGENT :: 10000 + 18
+OPT_LOW_SPEED_LIMIT :: 0 + 19
+OPT_LOW_SPEED_TIME :: 0 + 20
+OPT_RESUME_FROM :: 0 + 21
+OPT_COOKIE :: 10000 + 22
+OPT_HTTPHEADER :: 10000 + 23
+OPT_HTTPPOST :: 10000 + 24
+OPT_SSLCERT :: 10000 + 25
+OPT_KEYPASSWD :: 10000 + 26
+OPT_CRLF :: 0 + 27
+OPT_QUOTE :: 10000 + 28
+OPT_HEADERDATA :: 10000 + 29
+OPT_COOKIEFILE :: 10000 + 31
+OPT_SSLVERSION :: 0 + 32
+OPT_TIMECONDITION :: 0 + 33
+OPT_TIMEVALUE :: 0 + 34
+OPT_CUSTOMREQUEST :: 10000 + 36
+OPT_STDERR :: 10000 + 37
+OPT_POSTQUOTE :: 10000 + 39
+OPT_OBSOLETE40 :: 10000 + 40
+OPT_VERBOSE :: 0 + 41
+OPT_HEADER :: 0 + 42
+OPT_NOPROGRESS :: 0 + 43
+OPT_NOBODY :: 0 + 44
+OPT_FAILONERROR :: 0 + 45
+OPT_UPLOAD :: 0 + 46
+OPT_POST :: 0 + 47
+OPT_DIRLISTONLY :: 0 + 48
+OPT_APPEND :: 0 + 50
+OPT_NETRC :: 0 + 51
+OPT_FOLLOWLOCATION :: 0 + 52
+OPT_TRANSFERTEXT :: 0 + 53
+OPT_PUT :: 0 + 54
+OPT_PROGRESSFUNCTION :: 20000 + 56
+OPT_XFERINFODATA :: 10000 + 57
+OPT_AUTOREFERER :: 0 + 58
+OPT_PROXYPORT :: 0 + 59
+OPT_POSTFIELDSIZE :: 0 + 60
+OPT_HTTPPROXYTUNNEL :: 0 + 61
+OPT_INTERFACE :: 10000 + 62
+OPT_KRBLEVEL :: 10000 + 63
+OPT_SSL_VERIFYPEER :: 0 + 64
+OPT_CAINFO :: 10000 + 65
+OPT_MAXREDIRS :: 0 + 68
+OPT_FILETIME :: 0 + 69
+OPT_TELNETOPTIONS :: 10000 + 70
+OPT_MAXCONNECTS :: 0 + 71
+OPT_OBSOLETE72 :: 0 + 72
+OPT_FRESH_CONNECT :: 0 + 74
+OPT_FORBID_REUSE :: 0 + 75
+OPT_RANDOM_FILE :: 10000 + 76
+OPT_EGDSOCKET :: 10000 + 77
+OPT_CONNECTTIMEOUT :: 0 + 78
+OPT_HEADERFUNCTION :: 20000 + 79
+OPT_HTTPGET :: 0 + 80
+OPT_SSL_VERIFYHOST :: 0 + 81
+OPT_COOKIEJAR :: 10000 + 82
+OPT_SSL_CIPHER_LIST :: 10000 + 83
+OPT_HTTP_VERSION :: 0 + 84
+OPT_FTP_USE_EPSV :: 0 + 85
+OPT_SSLCERTTYPE :: 10000 + 86
+OPT_SSLKEY :: 10000 + 87
+OPT_SSLKEYTYPE :: 10000 + 88
+OPT_SSLENGINE :: 10000 + 89
+OPT_SSLENGINE_DEFAULT :: 0 + 90
+OPT_DNS_USE_GLOBAL_CACHE :: 0 + 91
+OPT_DNS_CACHE_TIMEOUT :: 0 + 92
+OPT_PREQUOTE :: 10000 + 93
+OPT_DEBUGFUNCTION :: 20000 + 94
+OPT_DEBUGDATA :: 10000 + 95
+OPT_COOKIESESSION :: 0 + 96
+OPT_CAPATH :: 10000 + 97
+OPT_BUFFERSIZE :: 0 + 98
+OPT_NOSIGNAL :: 0 + 99
+OPT_SHARE :: 10000 + 100
+OPT_PROXYTYPE :: 0 + 101
+OPT_ACCEPT_ENCODING :: 10000 + 102
+OPT_PRIVATE :: 10000 + 103
+OPT_HTTP200ALIASES :: 10000 + 104
+OPT_UNRESTRICTED_AUTH :: 0 + 105
+OPT_FTP_USE_EPRT :: 0 + 106
+OPT_HTTPAUTH :: 0 + 107
+OPT_SSL_CTX_FUNCTION :: 20000 + 108
+OPT_SSL_CTX_DATA :: 10000 + 109
+OPT_FTP_CREATE_MISSING_DIRS :: 0 + 110
+OPT_PROXYAUTH :: 0 + 111
+OPT_FTP_RESPONSE_TIMEOUT :: 0 + 112
+OPT_IPRESOLVE :: 0 + 113
+OPT_MAXFILESIZE :: 0 + 114
+OPT_INFILESIZE_LARGE :: 30000 + 115
+OPT_RESUME_FROM_LARGE :: 30000 + 116
+OPT_MAXFILESIZE_LARGE :: 30000 + 117
+OPT_NETRC_FILE :: 10000 + 118
+OPT_USE_SSL :: 0 + 119
+OPT_POSTFIELDSIZE_LARGE :: 30000 + 120
+OPT_TCP_NODELAY :: 0 + 121
+OPT_FTPSSLAUTH :: 0 + 129
+OPT_IOCTLFUNCTION :: 20000 + 130
+OPT_IOCTLDATA :: 10000 + 131
+OPT_FTP_ACCOUNT :: 10000 + 134
+OPT_COOKIELIST :: 10000 + 135
+OPT_IGNORE_CONTENT_LENGTH :: 0 + 136
+OPT_FTP_SKIP_PASV_IP :: 0 + 137
+OPT_FTP_FILEMETHOD :: 0 + 138
+OPT_LOCALPORT :: 0 + 139
+OPT_LOCALPORTRANGE :: 0 + 140
+OPT_CONNECT_ONLY :: 0 + 141
+OPT_CONV_FROM_NETWORK_FUNCTION :: 20000 + 142
+OPT_CONV_TO_NETWORK_FUNCTION :: 20000 + 143
+OPT_CONV_FROM_UTF8_FUNCTION :: 20000 + 144
+OPT_MAX_SEND_SPEED_LARGE :: 30000 + 145
+OPT_MAX_RECV_SPEED_LARGE :: 30000 + 146
+OPT_FTP_ALTERNATIVE_TO_USER :: 10000 + 147
+OPT_SOCKOPTFUNCTION :: 20000 + 148
+OPT_SOCKOPTDATA :: 10000 + 149
+OPT_SSL_SESSIONID_CACHE :: 0 + 150
+OPT_SSH_AUTH_TYPES :: 0 + 151
+OPT_SSH_PUBLIC_KEYFILE :: 10000 + 152
+OPT_SSH_PRIVATE_KEYFILE :: 10000 + 153
+OPT_FTP_SSL_CCC :: 0 + 154
+OPT_TIMEOUT_MS :: 0 + 155
+OPT_CONNECTTIMEOUT_MS :: 0 + 156
+OPT_HTTP_TRANSFER_DECODING :: 0 + 157
+OPT_HTTP_CONTENT_DECODING :: 0 + 158
+OPT_NEW_FILE_PERMS :: 0 + 159
+OPT_NEW_DIRECTORY_PERMS :: 0 + 160
+OPT_POSTREDIR :: 0 + 161
+OPT_SSH_HOST_PUBLIC_KEY_MD5 :: 10000 + 162
+OPT_OPENSOCKETFUNCTION :: 20000 + 163
+OPT_OPENSOCKETDATA :: 10000 + 164
+OPT_COPYPOSTFIELDS :: 10000 + 165
+OPT_PROXY_TRANSFER_MODE :: 0 + 166
+OPT_SEEKFUNCTION :: 20000 + 167
+OPT_SEEKDATA :: 10000 + 168
+OPT_CRLFILE :: 10000 + 169
+OPT_ISSUERCERT :: 10000 + 170
+OPT_ADDRESS_SCOPE :: 0 + 171
+OPT_CERTINFO :: 0 + 172
+OPT_USERNAME :: 10000 + 173
+OPT_PASSWORD :: 10000 + 174
+OPT_PROXYUSERNAME :: 10000 + 175
+OPT_PROXYPASSWORD :: 10000 + 176
+OPT_NOPROXY :: 10000 + 177
+OPT_TFTP_BLKSIZE :: 0 + 178
+OPT_SOCKS5_GSSAPI_SERVICE :: 10000 + 179
+OPT_SOCKS5_GSSAPI_NEC :: 0 + 180
+OPT_PROTOCOLS :: 0 + 181
+OPT_REDIR_PROTOCOLS :: 0 + 182
+OPT_SSH_KNOWNHOSTS :: 10000 + 183
+OPT_SSH_KEYFUNCTION :: 20000 + 184
+OPT_SSH_KEYDATA :: 10000 + 185
+OPT_MAIL_FROM :: 10000 + 186
+OPT_MAIL_RCPT :: 10000 + 187
+OPT_FTP_USE_PRET :: 0 + 188
+OPT_RTSP_REQUEST :: 0 + 189
+OPT_RTSP_SESSION_ID :: 10000 + 190
+OPT_RTSP_STREAM_URI :: 10000 + 191
+OPT_RTSP_TRANSPORT :: 10000 + 192
+OPT_RTSP_CLIENT_CSEQ :: 0 + 193
+OPT_RTSP_SERVER_CSEQ :: 0 + 194
+OPT_INTERLEAVEDATA :: 10000 + 195
+OPT_INTERLEAVEFUNCTION :: 20000 + 196
+OPT_WILDCARDMATCH :: 0 + 197
+OPT_CHUNK_BGN_FUNCTION :: 20000 + 198
+OPT_CHUNK_END_FUNCTION :: 20000 + 199
+OPT_FNMATCH_FUNCTION :: 20000 + 200
+OPT_CHUNK_DATA :: 10000 + 201
+OPT_FNMATCH_DATA :: 10000 + 202
+OPT_RESOLVE :: 10000 + 203
+OPT_TLSAUTH_USERNAME :: 10000 + 204
+OPT_TLSAUTH_PASSWORD :: 10000 + 205
+OPT_TLSAUTH_TYPE :: 10000 + 206
+OPT_TRANSFER_ENCODING :: 0 + 207
+OPT_CLOSESOCKETFUNCTION :: 20000 + 208
+OPT_CLOSESOCKETDATA :: 10000 + 209
+OPT_GSSAPI_DELEGATION :: 0 + 210
+OPT_DNS_SERVERS :: 10000 + 211
+OPT_ACCEPTTIMEOUT_MS :: 0 + 212
+OPT_TCP_KEEPALIVE :: 0 + 213
+OPT_TCP_KEEPIDLE :: 0 + 214
+OPT_TCP_KEEPINTVL :: 0 + 215
+OPT_SSL_OPTIONS :: 0 + 216
+OPT_MAIL_AUTH :: 10000 + 217
+OPT_SASL_IR :: 0 + 218
+OPT_XFERINFOFUNCTION :: 20000 + 219
+OPT_XOAUTH2_BEARER :: 10000 + 220
+OPT_DNS_INTERFACE :: 10000 + 221
+OPT_DNS_LOCAL_IP4 :: 10000 + 222
+OPT_DNS_LOCAL_IP6 :: 10000 + 223
+OPT_LOGIN_OPTIONS :: 10000 + 224
+OPT_SSL_ENABLE_NPN :: 0 + 225
+OPT_SSL_ENABLE_ALPN :: 0 + 226
+OPT_EXPECT_100_TIMEOUT_MS :: 0 + 227
+OPT_PROXYHEADER :: 10000 + 228
+OPT_HEADEROPT :: 0 + 229
+OPT_PINNEDPUBLICKEY :: 10000 + 230
+OPT_UNIX_SOCKET_PATH :: 10000 + 231
+OPT_SSL_VERIFYSTATUS :: 0 + 232
+OPT_SSL_FALSESTART :: 0 + 233
+OPT_PATH_AS_IS :: 0 + 234
+OPT_PROXY_SERVICE_NAME :: 10000 + 235
+OPT_SERVICE_NAME :: 10000 + 236
+OPT_PIPEWAIT :: 0 + 237
+OPT_DEFAULT_PROTOCOL :: 10000 + 238
+OPT_STREAM_WEIGHT :: 0 + 239
+OPT_STREAM_DEPENDS :: 10000 + 240
+OPT_STREAM_DEPENDS_E :: 10000 + 241
+OPT_TFTP_NO_OPTIONS :: 0 + 242
+OPT_CONNECT_TO :: 10000 + 243
+OPT_TCP_FASTOPEN :: 0 + 244
+OPT_KEEP_SENDING_ON_ERROR :: 0 + 245
+OPT_PROXY_CAINFO :: 10000 + 246
+OPT_PROXY_CAPATH :: 10000 + 247
+OPT_PROXY_SSL_VERIFYPEER :: 0 + 248
+OPT_PROXY_SSL_VERIFYHOST :: 0 + 249
+OPT_PROXY_SSLVERSION :: 0 + 250
+OPT_PROXY_TLSAUTH_USERNAME :: 10000 + 251
+OPT_PROXY_TLSAUTH_PASSWORD :: 10000 + 252
+OPT_PROXY_TLSAUTH_TYPE :: 10000 + 253
+OPT_PROXY_SSLCERT :: 10000 + 254
+OPT_PROXY_SSLCERTTYPE :: 10000 + 255
+OPT_PROXY_SSLKEY :: 10000 + 256
+OPT_PROXY_SSLKEYTYPE :: 10000 + 257
+OPT_PROXY_KEYPASSWD :: 10000 + 258
+OPT_PROXY_SSL_CIPHER_LIST :: 10000 + 259
+OPT_PROXY_CRLFILE :: 10000 + 260
+OPT_PROXY_SSL_OPTIONS :: 0 + 261
+OPT_PRE_PROXY :: 10000 + 262
+OPT_PROXY_PINNEDPUBLICKEY :: 10000 + 263
+OPT_ABSTRACT_UNIX_SOCKET :: 10000 + 264
+OPT_SUPPRESS_CONNECT_HEADERS :: 0 + 265
+OPT_REQUEST_TARGET :: 10000 + 266
+OPT_SOCKS5_AUTH :: 0 + 267
+OPT_SSH_COMPRESSION :: 0 + 268
+OPT_MIMEPOST :: 10000 + 269
+OPT_TIMEVALUE_LARGE :: 30000 + 270
+OPT_HAPPY_EYEBALLS_TIMEOUT_MS :: 0 + 271
+OPT_RESOLVER_START_FUNCTION :: 20000 + 272
+OPT_RESOLVER_START_DATA :: 10000 + 273
+OPT_HAPROXYPROTOCOL :: 0 + 274
+OPT_DNS_SHUFFLE_ADDRESSES :: 0 + 275
+OPT_TLS13_CIPHERS :: 10000 + 276
+OPT_PROXY_TLS13_CIPHERS :: 10000 + 277
+OPT_DISALLOW_USERNAME_IN_URL :: 0 + 278
+OPT_DOH_URL :: 10000 + 279
+OPT_UPLOAD_BUFFERSIZE :: 0 + 280
+OPT_UPKEEP_INTERVAL_MS :: 0 + 281
+OPT_CURLU :: 10000 + 282
+OPT_TRAILERFUNCTION :: 20000 + 283
+OPT_TRAILERDATA :: 10000 + 284
+OPT_HTTP09_ALLOWED :: 0 + 285
+OPT_ALTSVC_CTRL :: 0 + 286
+OPT_ALTSVC :: 10000 + 287
+OPT_MAXAGE_CONN :: 0 + 288
+OPT_SASL_AUTHZID :: 10000 + 289
+OPT_MAIL_RCPT_ALLLOWFAILS :: 0 + 290
+OPT_SSLCERT_BLOB :: 40000 + 291
+OPT_SSLKEY_BLOB :: 40000 + 292
+OPT_PROXY_SSLCERT_BLOB :: 40000 + 293
+OPT_PROXY_SSLKEY_BLOB :: 40000 + 294
+OPT_ISSUERCERT_BLOB :: 40000 + 295
+OPT_PROXY_ISSUERCERT :: 10000 + 296
+OPT_PROXY_ISSUERCERT_BLOB :: 40000 + 297
+OPT_SSL_EC_CURVES :: 10000 + 298
+OPT_HSTS_CTRL :: 0 + 299
+OPT_HSTS :: 10000 + 300
+OPT_HSTSREADFUNCTION :: 20000 + 301
+OPT_HSTSREADDATA :: 10000 + 302
+OPT_HSTSWRITEFUNCTION :: 20000 + 303
+OPT_HSTSWRITEDATA :: 10000 + 304
+OPT_AWS_SIGV4 :: 10000 + 305
+OPT_DOH_SSL_VERIFYPEER :: 0 + 306
+OPT_DOH_SSL_VERIFYHOST :: 0 + 307
+OPT_DOH_SSL_VERIFYSTATUS :: 0 + 308
+OPT_CAINFO_BLOB :: 40000 + 309
+OPT_PROXY_CAINFO_BLOB :: 40000 + 310
+OPT_LASTENTRY :: 40311
 /* } */
 
 TimeCond :: c.int
 /*  <ENUM> :: enum { */
-TIMECOND_NONE              :: 0
-TIMECOND_IFMODSINCE        :: 1
-TIMECOND_IFUNMODSINCE      :: 2
-TIMECOND_LASTMOD           :: 3
-TIMECOND_LAST              :: 4
+TIMECOND_NONE :: 0
+TIMECOND_IFMODSINCE :: 1
+TIMECOND_IFUNMODSINCE :: 2
+TIMECOND_LASTMOD :: 3
+TIMECOND_LAST :: 4
 /* } */
 
-mime :: struct {}
+mime :: struct {
+}
 
-mimepart :: struct {}
+mimepart :: struct {
+}
 
 CURLformoption :: c.int
 /*  <ENUM> :: enum { */
-FORM_NOTHING            :: 0
-FORM_COPYNAME           :: 1
-FORM_PTRNAME            :: 2
-FORM_NAMELENGTH         :: 3
-FORM_COPYCONTENTS       :: 4
-FORM_PTRCONTENTS        :: 5
-FORM_CONTENTSLENGTH     :: 6
-FORM_FILECONTENT        :: 7
-FORM_ARRAY              :: 8
-FORM_OBSOLETE           :: 9
-FORM_FILE               :: 10
-FORM_BUFFER             :: 11
-FORM_BUFFERPTR          :: 12
-FORM_BUFFERLENGTH       :: 13
-FORM_CONTENTTYPE        :: 14
-FORM_CONTENTHEADER      :: 15
-FORM_FILENAME           :: 16
-FORM_END                :: 17
-FORM_OBSOLETE2          :: 18
-FORM_STREAM             :: 19
-FORM_CONTENTLEN         :: 20
-FORM_LASTENTRY          :: 21
+FORM_NOTHING :: 0
+FORM_COPYNAME :: 1
+FORM_PTRNAME :: 2
+FORM_NAMELENGTH :: 3
+FORM_COPYCONTENTS :: 4
+FORM_PTRCONTENTS :: 5
+FORM_CONTENTSLENGTH :: 6
+FORM_FILECONTENT :: 7
+FORM_ARRAY :: 8
+FORM_OBSOLETE :: 9
+FORM_FILE :: 10
+FORM_BUFFER :: 11
+FORM_BUFFERPTR :: 12
+FORM_BUFFERLENGTH :: 13
+FORM_CONTENTTYPE :: 14
+FORM_CONTENTHEADER :: 15
+FORM_FILENAME :: 16
+FORM_END :: 17
+FORM_OBSOLETE2 :: 18
+FORM_STREAM :: 19
+FORM_CONTENTLEN :: 20
+FORM_LASTENTRY :: 21
 /* } */
 
 CURLFORMcode :: c.int
 /*  <ENUM> :: enum { */
-FORMADD_OK                  :: 0
-FORMADD_MEMORY              :: 1
-FORMADD_OPTION_TWICE        :: 2
-FORMADD_NULL                :: 3
-FORMADD_UNKNOWN_OPTION      :: 4
-FORMADD_INCOMPLETE          :: 5
-FORMADD_ILLEGAL_ARRAY       :: 6
-FORMADD_DISABLED            :: 7
-FORMADD_LAST                :: 8
+FORMADD_OK :: 0
+FORMADD_MEMORY :: 1
+FORMADD_OPTION_TWICE :: 2
+FORMADD_NULL :: 3
+FORMADD_UNKNOWN_OPTION :: 4
+FORMADD_INCOMPLETE :: 5
+FORMADD_ILLEGAL_ARRAY :: 6
+FORMADD_DISABLED :: 7
+FORMADD_LAST :: 8
 /* } */
 
 waitfd :: struct {
-    fd      : socket_t,
-    events  : c.short,
-    revents : c.short,
+    fd:      socket_t,
+    events:  c.short,
+    revents: c.short,
 }
-
 
 
 CURLMcode :: c.int
 /*  <ENUM> :: enum { */
-M_CALL_MULTI_PERFORM        :: -1
-M_OK                        :: 0
-M_BAD_HANDLE                :: 1
-M_BAD_EASY_HANDLE           :: 2
-M_OUT_OF_MEMORY             :: 3
-M_INTERNAL_ERROR            :: 4
-M_BAD_SOCKET                :: 5
-M_UNKNOWN_OPTION            :: 6
-M_ADDED_ALREADY             :: 7
-M_RECURSIVE_API_CALL        :: 8
-M_WAKEUP_FAILURE            :: 9
-M_BAD_FUNCTION_ARGUMENT     :: 10
-M_LAST                      :: 11
+M_CALL_MULTI_PERFORM :: -1
+M_OK :: 0
+M_BAD_HANDLE :: 1
+M_BAD_EASY_HANDLE :: 2
+M_OUT_OF_MEMORY :: 3
+M_INTERNAL_ERROR :: 4
+M_BAD_SOCKET :: 5
+M_UNKNOWN_OPTION :: 6
+M_ADDED_ALREADY :: 7
+M_RECURSIVE_API_CALL :: 8
+M_WAKEUP_FAILURE :: 9
+M_BAD_FUNCTION_ARGUMENT :: 10
+M_LAST :: 11
 /* } */
 
 CURLMSG :: c.int
 /*  <ENUM> :: enum { */
-MSG_NONE     :: 0
-MSG_DONE     :: 1
-MSG_LAST     :: 2
+MSG_NONE :: 0
+MSG_DONE :: 1
+MSG_LAST :: 2
 /* } */
 
-CURLMsg :: struct
-{
-    msg: CURLMSG,
+CURLMsg :: struct {
+    msg:         CURLMSG,
     easy_handle: rawptr,
-    data: struct #raw_union
-    {
+    data:        struct #raw_union {
         whatever: rawptr,
-        result: CURLcode,
+        result:   CURLcode,
     },
 }
 
-ssl_backend :: struct
-{
-    id: sslbackend,
+ssl_backend :: struct {
+    id:   sslbackend,
     name: cstring,
 }
 
 CURLsslset :: c.int
 /*  <ENUM> :: enum { */
-SSLSET_OK                  :: 0
-SSLSET_UNKNOWN_BACKEND     :: 1
-SSLSET_TOO_LATE            :: 2
-SSLSET_NO_BACKENDS         :: 3
+SSLSET_OK :: 0
+SSLSET_UNKNOWN_BACKEND :: 1
+SSLSET_TOO_LATE :: 2
+SSLSET_NO_BACKENDS :: 3
 /* } */
 
 CURLINFO :: c.int
 /*  <ENUM> :: enum { */
-INFO_NONE                          :: 0
-INFO_EFFECTIVE_URL                 :: 0x100000 + 1
-INFO_RESPONSE_CODE                 :: 0x200000 + 2
-INFO_TOTAL_TIME                    :: 0x300000 + 3
-INFO_NAMELOOKUP_TIME               :: 0x300000 + 4
-INFO_CONNECT_TIME                  :: 0x300000 + 5
-INFO_PRETRANSFER_TIME              :: 0x300000 + 6
-INFO_SIZE_UPLOAD                   :: 0x300000 + 7
-INFO_SIZE_UPLOAD_T                 :: 0x600000 + 7
-INFO_SIZE_DOWNLOAD                 :: 0x300000 + 8
-INFO_SIZE_DOWNLOAD_T               :: 0x600000 + 8
-INFO_SPEED_DOWNLOAD                :: 0x300000 + 9
-INFO_SPEED_DOWNLOAD_T              :: 0x600000 + 9
-INFO_SPEED_UPLOAD                  :: 0x300000 + 10
-INFO_SPEED_UPLOAD_T                :: 0x600000 + 10
-INFO_HEADER_SIZE                   :: 0x200000 + 11
-INFO_REQUEST_SIZE                  :: 0x200000 + 12
-INFO_SSL_VERIFYRESULT              :: 0x200000 + 13
-INFO_FILETIME                      :: 0x200000 + 14
-INFO_FILETIME_T                    :: 0x600000 + 14
-INFO_CONTENT_LENGTH_DOWNLOAD       :: 0x300000 + 15
-INFO_CONTENT_LENGTH_DOWNLOAD_T     :: 0x600000 + 15
-INFO_CONTENT_LENGTH_UPLOAD         :: 0x300000 + 16
-INFO_CONTENT_LENGTH_UPLOAD_T       :: 0x600000 + 16
-INFO_STARTTRANSFER_TIME            :: 0x300000 + 17
-INFO_CONTENT_TYPE                  :: 0x100000 + 18
-INFO_REDIRECT_TIME                 :: 0x300000 + 19
-INFO_REDIRECT_COUNT                :: 0x200000 + 20
-INFO_PRIVATE                       :: 0x100000 + 21
-INFO_HTTP_CONNECTCODE              :: 0x200000 + 22
-INFO_HTTPAUTH_AVAIL                :: 0x200000 + 23
-INFO_PROXYAUTH_AVAIL               :: 0x200000 + 24
-INFO_OS_ERRNO                      :: 0x200000 + 25
-INFO_NUM_CONNECTS                  :: 0x200000 + 26
-INFO_SSL_ENGINES                   :: 0x400000 + 27
-INFO_COOKIELIST                    :: 0x400000 + 28
-INFO_LASTSOCKET                    :: 0x200000 + 29
-INFO_FTP_ENTRY_PATH                :: 0x100000 + 30
-INFO_REDIRECT_URL                  :: 0x100000 + 31
-INFO_PRIMARY_IP                    :: 0x100000 + 32
-INFO_APPCONNECT_TIME               :: 0x300000 + 33
-INFO_CERTINFO                      :: 0x400000 + 34
-INFO_CONDITION_UNMET               :: 0x200000 + 35
-INFO_RTSP_SESSION_ID               :: 0x100000 + 36
-INFO_RTSP_CLIENT_CSEQ              :: 0x200000 + 37
-INFO_RTSP_SERVER_CSEQ              :: 0x200000 + 38
-INFO_RTSP_CSEQ_RECV                :: 0x200000 + 39
-INFO_PRIMARY_PORT                  :: 0x200000 + 40
-INFO_LOCAL_IP                      :: 0x100000 + 41
-INFO_LOCAL_PORT                    :: 0x200000 + 42
-INFO_TLS_SESSION                   :: 0x400000 + 43
-INFO_ACTIVESOCKET                  :: 0x500000 + 44
-INFO_TLS_SSL_PTR                   :: 0x400000 + 45
-INFO_HTTP_VERSION                  :: 0x200000 + 46
-INFO_PROXY_SSL_VERIFYRESULT        :: 0x200000 + 47
-INFO_PROTOCOL                      :: 0x200000 + 48
-INFO_SCHEME                        :: 0x100000 + 49
-INFO_TOTAL_TIME_T                  :: 0x600000 + 50
-INFO_NAMELOOKUP_TIME_T             :: 0x600000 + 51
-INFO_CONNECT_TIME_T                :: 0x600000 + 52
-INFO_PRETRANSFER_TIME_T            :: 0x600000 + 53
-INFO_STARTTRANSFER_TIME_T          :: 0x600000 + 54
-INFO_REDIRECT_TIME_T               :: 0x600000 + 55
-INFO_APPCONNECT_TIME_T             :: 0x600000 + 56
-INFO_RETRY_AFTER                   :: 0x600000 + 57
-INFO_EFFECTIVE_METHOD              :: 0x100000 + 58
-INFO_PROXY_ERROR                   :: 0x200000 + 59
-INFO_REFERER                       :: 0x100000 + 60
-INFO_LASTONE                       :: 60
+INFO_NONE :: 0
+INFO_EFFECTIVE_URL :: 0x100000 + 1
+INFO_RESPONSE_CODE :: 0x200000 + 2
+INFO_TOTAL_TIME :: 0x300000 + 3
+INFO_NAMELOOKUP_TIME :: 0x300000 + 4
+INFO_CONNECT_TIME :: 0x300000 + 5
+INFO_PRETRANSFER_TIME :: 0x300000 + 6
+INFO_SIZE_UPLOAD :: 0x300000 + 7
+INFO_SIZE_UPLOAD_T :: 0x600000 + 7
+INFO_SIZE_DOWNLOAD :: 0x300000 + 8
+INFO_SIZE_DOWNLOAD_T :: 0x600000 + 8
+INFO_SPEED_DOWNLOAD :: 0x300000 + 9
+INFO_SPEED_DOWNLOAD_T :: 0x600000 + 9
+INFO_SPEED_UPLOAD :: 0x300000 + 10
+INFO_SPEED_UPLOAD_T :: 0x600000 + 10
+INFO_HEADER_SIZE :: 0x200000 + 11
+INFO_REQUEST_SIZE :: 0x200000 + 12
+INFO_SSL_VERIFYRESULT :: 0x200000 + 13
+INFO_FILETIME :: 0x200000 + 14
+INFO_FILETIME_T :: 0x600000 + 14
+INFO_CONTENT_LENGTH_DOWNLOAD :: 0x300000 + 15
+INFO_CONTENT_LENGTH_DOWNLOAD_T :: 0x600000 + 15
+INFO_CONTENT_LENGTH_UPLOAD :: 0x300000 + 16
+INFO_CONTENT_LENGTH_UPLOAD_T :: 0x600000 + 16
+INFO_STARTTRANSFER_TIME :: 0x300000 + 17
+INFO_CONTENT_TYPE :: 0x100000 + 18
+INFO_REDIRECT_TIME :: 0x300000 + 19
+INFO_REDIRECT_COUNT :: 0x200000 + 20
+INFO_PRIVATE :: 0x100000 + 21
+INFO_HTTP_CONNECTCODE :: 0x200000 + 22
+INFO_HTTPAUTH_AVAIL :: 0x200000 + 23
+INFO_PROXYAUTH_AVAIL :: 0x200000 + 24
+INFO_OS_ERRNO :: 0x200000 + 25
+INFO_NUM_CONNECTS :: 0x200000 + 26
+INFO_SSL_ENGINES :: 0x400000 + 27
+INFO_COOKIELIST :: 0x400000 + 28
+INFO_LASTSOCKET :: 0x200000 + 29
+INFO_FTP_ENTRY_PATH :: 0x100000 + 30
+INFO_REDIRECT_URL :: 0x100000 + 31
+INFO_PRIMARY_IP :: 0x100000 + 32
+INFO_APPCONNECT_TIME :: 0x300000 + 33
+INFO_CERTINFO :: 0x400000 + 34
+INFO_CONDITION_UNMET :: 0x200000 + 35
+INFO_RTSP_SESSION_ID :: 0x100000 + 36
+INFO_RTSP_CLIENT_CSEQ :: 0x200000 + 37
+INFO_RTSP_SERVER_CSEQ :: 0x200000 + 38
+INFO_RTSP_CSEQ_RECV :: 0x200000 + 39
+INFO_PRIMARY_PORT :: 0x200000 + 40
+INFO_LOCAL_IP :: 0x100000 + 41
+INFO_LOCAL_PORT :: 0x200000 + 42
+INFO_TLS_SESSION :: 0x400000 + 43
+INFO_ACTIVESOCKET :: 0x500000 + 44
+INFO_TLS_SSL_PTR :: 0x400000 + 45
+INFO_HTTP_VERSION :: 0x200000 + 46
+INFO_PROXY_SSL_VERIFYRESULT :: 0x200000 + 47
+INFO_PROTOCOL :: 0x200000 + 48
+INFO_SCHEME :: 0x100000 + 49
+INFO_TOTAL_TIME_T :: 0x600000 + 50
+INFO_NAMELOOKUP_TIME_T :: 0x600000 + 51
+INFO_CONNECT_TIME_T :: 0x600000 + 52
+INFO_PRETRANSFER_TIME_T :: 0x600000 + 53
+INFO_STARTTRANSFER_TIME_T :: 0x600000 + 54
+INFO_REDIRECT_TIME_T :: 0x600000 + 55
+INFO_APPCONNECT_TIME_T :: 0x600000 + 56
+INFO_RETRY_AFTER :: 0x600000 + 57
+INFO_EFFECTIVE_METHOD :: 0x100000 + 58
+INFO_PROXY_ERROR :: 0x200000 + 59
+INFO_REFERER :: 0x100000 + 60
+INFO_LASTONE :: 60
 /* } */
 
 closepolicy :: c.int
 /*  <ENUM> :: enum { */
-CLOSEPOLICY_NONE                    :: 0
-CLOSEPOLICY_OLDEST                  :: 1
-CLOSEPOLICY_LEAST_RECENTLY_USED     :: 2
-CLOSEPOLICY_LEAST_TRAFFIC           :: 3
-CLOSEPOLICY_SLOWEST                 :: 4
-CLOSEPOLICY_CALLBACK                :: 5
-CLOSEPOLICY_LAST                    :: 6
+CLOSEPOLICY_NONE :: 0
+CLOSEPOLICY_OLDEST :: 1
+CLOSEPOLICY_LEAST_RECENTLY_USED :: 2
+CLOSEPOLICY_LEAST_TRAFFIC :: 3
+CLOSEPOLICY_SLOWEST :: 4
+CLOSEPOLICY_CALLBACK :: 5
+CLOSEPOLICY_LAST :: 6
 /* } */
 
 lock_data :: c.int
 /*  <ENUM> :: enum { */
-LOCK_DATA_NONE             :: 0
-LOCK_DATA_SHARE            :: 1
-LOCK_DATA_COOKIE           :: 2
-LOCK_DATA_DNS              :: 3
-LOCK_DATA_SSL_SESSION      :: 4
-LOCK_DATA_CONNECT          :: 5
-LOCK_DATA_PSL              :: 6
-LOCK_DATA_LAST             :: 7
+LOCK_DATA_NONE :: 0
+LOCK_DATA_SHARE :: 1
+LOCK_DATA_COOKIE :: 2
+LOCK_DATA_DNS :: 3
+LOCK_DATA_SSL_SESSION :: 4
+LOCK_DATA_CONNECT :: 5
+LOCK_DATA_PSL :: 6
+LOCK_DATA_LAST :: 7
 /* } */
 
 lock_access :: c.int
 /*  <ENUM> :: enum { */
-LOCK_ACCESS_NONE        :: 0
-LOCK_ACCESS_SHARED      :: 1
-LOCK_ACCESS_SINGLE      :: 2
-LOCK_ACCESS_LAST        :: 3
+LOCK_ACCESS_NONE :: 0
+LOCK_ACCESS_SHARED :: 1
+LOCK_ACCESS_SINGLE :: 2
+LOCK_ACCESS_LAST :: 3
 /* } */
 
 CURLSHcode :: c.int
 /*  <ENUM> :: enum { */
-SHE_OK               :: 0
-SHE_BAD_OPTION       :: 1
-SHE_IN_USE           :: 2
-SHE_INVALID          :: 3
-SHE_NOMEM            :: 4
-SHE_NOT_BUILT_IN     :: 5
-SHE_LAST             :: 6
+SHE_OK :: 0
+SHE_BAD_OPTION :: 1
+SHE_IN_USE :: 2
+SHE_INVALID :: 3
+SHE_NOMEM :: 4
+SHE_NOT_BUILT_IN :: 5
+SHE_LAST :: 6
 /* } */
 
 CURLSHoption :: c.int
 /*  <ENUM> :: enum { */
-SHOPT_NONE           :: 0
-SHOPT_SHARE          :: 1
-SHOPT_UNSHARE        :: 2
-SHOPT_LOCKFUNC       :: 3
-SHOPT_UNLOCKFUNC     :: 4
-SHOPT_USERDATA       :: 5
-SHOPT_LAST           :: 6
+SHOPT_NONE :: 0
+SHOPT_SHARE :: 1
+SHOPT_UNSHARE :: 2
+SHOPT_LOCKFUNC :: 3
+SHOPT_UNLOCKFUNC :: 4
+SHOPT_USERDATA :: 5
+SHOPT_LAST :: 6
 /* } */
 
 CURLversion :: c.int
 /*  <ENUM> :: enum { */
-VERSION_FIRST       :: 0
-VERSION_SECOND      :: 1
-VERSION_THIRD       :: 2
-VERSION_FOURTH      :: 3
-VERSION_FIFTH       :: 4
-VERSION_SIXTH       :: 5
-VERSION_SEVENTH     :: 6
-VERSION_EIGHTH      :: 7
-VERSION_NINTH       :: 8
-VERSION_TENTH       :: 9
-VERSION_LAST        :: 10
+VERSION_FIRST :: 0
+VERSION_SECOND :: 1
+VERSION_THIRD :: 2
+VERSION_FOURTH :: 3
+VERSION_FIFTH :: 4
+VERSION_SIXTH :: 5
+VERSION_SEVENTH :: 6
+VERSION_EIGHTH :: 7
+VERSION_NINTH :: 8
+VERSION_TENTH :: 9
+VERSION_LAST :: 10
 /* } */
 
-version_info_data :: struct
-{
-    age: CURLversion,
-    version: cstring,
-    version_num: c.uint,
-    host: cstring,
-    features: c.int,
-    ssl_version: cstring,
+version_info_data :: struct {
+    age:             CURLversion,
+    version:         cstring,
+    version_num:     c.uint,
+    host:            cstring,
+    features:        c.int,
+    ssl_version:     cstring,
     ssl_version_num: c.long,
-    libz_version: cstring,
-    protocols: cstring,
-    
-    ares: cstring,
-    ares_num: c.int,
-    
-    libidn: cstring,
-    
-    iconv_ver_num: c.int,
-    
-    libssh_version: cstring,
-    
-    brotli_ver_num: c.uint,
-    brotli_version: cstring,
-    
+    libz_version:    cstring,
+    protocols:       cstring,
+    ares:            cstring,
+    ares_num:        c.int,
+    libidn:          cstring,
+    iconv_ver_num:   c.int,
+    libssh_version:  cstring,
+    brotli_ver_num:  c.uint,
+    brotli_version:  cstring,
     nghttp2_version: cstring,
-    quic_version: cstring,
-    
-    cainfo: cstring,
-    capath: cstring,
-    
-    zstd_ver_num: c.uint,
-    zstd_version: cstring,
-    
-    hyper_cersion: cstring,
-    
-    gsasl_version: cstring,
+    quic_version:    cstring,
+    cainfo:          cstring,
+    capath:          cstring,
+    zstd_ver_num:    c.uint,
+    zstd_version:    cstring,
+    hyper_cersion:   cstring,
+    gsasl_version:   cstring,
 }
 
 __time_t :: c.long
 
-formget_callback :: (proc(arg : rawptr, buf : cstring, len : uint) -> uint)
+formget_callback :: (proc(arg: rawptr, buf: cstring, len: uint) -> uint)
 
-pushheaders :: struct {}
+pushheaders :: struct {
+}
 
 easytype :: c.int
 /*  <ENUM> :: enum { */
-OT_LONG         :: 0
-OT_VALUES       :: 1
-OT_OFF_T        :: 2
-OT_OBJECT       :: 3
-OT_STRING       :: 4
-OT_SLIST        :: 5
-OT_CBPTR        :: 6
-OT_BLOB         :: 7
-OT_FUNCTION     :: 8
+OT_LONG :: 0
+OT_VALUES :: 1
+OT_OFF_T :: 2
+OT_OBJECT :: 3
+OT_STRING :: 4
+OT_SLIST :: 5
+OT_CBPTR :: 6
+OT_BLOB :: 7
+OT_FUNCTION :: 8
 /* } */
 
 CURLUcode :: c.int
 /*  <ENUM> :: enum { */
-UE_OK                     :: 0
-UE_BAD_HANDLE             :: 1
-UE_BAD_PARTPOINTER        :: 2
-UE_MALFORMED_INPUT        :: 3
-UE_BAD_PORT_NUMBER        :: 4
-UE_UNSUPPORTED_SCHEME     :: 5
-UE_URLDECODE              :: 6
-UE_OUT_OF_MEMORY          :: 7
-UE_USER_NOT_ALLOWED       :: 8
-UE_UNKNOWN_PART           :: 9
-UE_NO_SCHEME              :: 10
-UE_NO_USER                :: 11
-UE_NO_PASSWORD            :: 12
-UE_NO_OPTIONS             :: 13
-UE_NO_HOST                :: 14
-UE_NO_PORT                :: 15
-UE_NO_QUERY               :: 16
-UE_NO_FRAGMENT            :: 17
+UE_OK :: 0
+UE_BAD_HANDLE :: 1
+UE_BAD_PARTPOINTER :: 2
+UE_MALFORMED_INPUT :: 3
+UE_BAD_PORT_NUMBER :: 4
+UE_UNSUPPORTED_SCHEME :: 5
+UE_URLDECODE :: 6
+UE_OUT_OF_MEMORY :: 7
+UE_USER_NOT_ALLOWED :: 8
+UE_UNKNOWN_PART :: 9
+UE_NO_SCHEME :: 10
+UE_NO_USER :: 11
+UE_NO_PASSWORD :: 12
+UE_NO_OPTIONS :: 13
+UE_NO_HOST :: 14
+UE_NO_PORT :: 15
+UE_NO_QUERY :: 16
+UE_NO_FRAGMENT :: 17
 /* } */
 
 easyoption :: struct {
-    name  : cstring,
-    id    : CURLoption,
-    type  : easytype,
-    flags : c.uint,
+    name:  cstring,
+    id:    CURLoption,
+    type:  easytype,
+    flags: c.uint,
 }
 
 CURLUPart :: c.int
 /*  <ENUM> :: enum { */
-UPART_URL          :: 0
-UPART_SCHEME       :: 1
-UPART_USER         :: 2
-UPART_PASSWORD     :: 3
-UPART_OPTIONS      :: 4
-UPART_HOST         :: 5
-UPART_PORT         :: 6
-UPART_PATH         :: 7
-UPART_QUERY        :: 8
-UPART_FRAGMENT     :: 9
-UPART_ZONEID       :: 10
+UPART_URL :: 0
+UPART_SCHEME :: 1
+UPART_USER :: 2
+UPART_PASSWORD :: 3
+UPART_OPTIONS :: 4
+UPART_HOST :: 5
+UPART_PORT :: 6
+UPART_PATH :: 7
+UPART_QUERY :: 8
+UPART_FRAGMENT :: 9
+UPART_ZONEID :: 10
 /* } */
 
-Curl_URL :: struct {}
+Curl_URL :: struct {
+}
 
 CURLU :: Curl_URL
 
 CURLMoption :: c.int
 /*  <ENUM> :: enum { */
-MOPT_SOCKETFUNCTION                  :: 20000 + 1
-MOPT_SOCKETDATA                      :: 10000 + 2
-MOPT_PIPELINING                      :: 0 + 3
-MOPT_TIMERFUNCTION                   :: 20000 + 4
-MOPT_TIMERDATA                       :: 10000 + 5
-MOPT_MAXCONNECTS                     :: 0 + 6
-MOPT_MAX_HOST_CONNECTIONS            :: 0 + 7
-MOPT_MAX_PIPELINE_LENGTH             :: 0 + 8
-MOPT_CONTENT_LENGTH_PENALTY_SIZE     :: 30000 + 9
-MOPT_CHUNK_LENGTH_PENALTY_SIZE       :: 30000 + 10
-MOPT_PIPELINING_SITE_BL              :: 10000 + 11
-MOPT_PIPELINING_SERVER_BL            :: 10000 + 12
-MOPT_MAX_TOTAL_CONNECTIONS           :: 0 + 13
-MOPT_PUSHFUNCTION                    :: 20000 + 14
-MOPT_PUSHDATA                        :: 10000 + 15
-MOPT_MAX_CONCURRENT_STREAMS          :: 0 + 16
-MOPT_LASTENTRY                       :: 17
+MOPT_SOCKETFUNCTION :: 20000 + 1
+MOPT_SOCKETDATA :: 10000 + 2
+MOPT_PIPELINING :: 0 + 3
+MOPT_TIMERFUNCTION :: 20000 + 4
+MOPT_TIMERDATA :: 10000 + 5
+MOPT_MAXCONNECTS :: 0 + 6
+MOPT_MAX_HOST_CONNECTIONS :: 0 + 7
+MOPT_MAX_PIPELINE_LENGTH :: 0 + 8
+MOPT_CONTENT_LENGTH_PENALTY_SIZE :: 30000 + 9
+MOPT_CHUNK_LENGTH_PENALTY_SIZE :: 30000 + 10
+MOPT_PIPELINING_SITE_BL :: 10000 + 11
+MOPT_PIPELINING_SERVER_BL :: 10000 + 12
+MOPT_MAX_TOTAL_CONNECTIONS :: 0 + 13
+MOPT_PUSHFUNCTION :: 20000 + 14
+MOPT_PUSHDATA :: 10000 + 15
+MOPT_MAX_CONCURRENT_STREAMS :: 0 + 16
+MOPT_LASTENTRY :: 17
 /* } */
 
 
@@ -1294,81 +1281,81 @@ when ODIN_OS == .Windows {
 }
 
 /* Procedures */
-@(link_prefix="curl_")
+@(link_prefix = "curl_")
 foreign libcurl {
-    easy_setopt                                 :: proc(curl : rawptr, option : CURLoption, #c_vararg __args : ..any) -> CURLcode ---
-    easy_perform                                :: proc(curl : rawptr) -> CURLcode ---
-    easy_cleanup                                :: proc(curl : rawptr) ---
-    easy_getinfo                                :: proc(curl : rawptr, info : CURLINFO, #c_vararg __args : ..any) -> CURLcode ---
-    easy_reset                                  :: proc(curl : rawptr) ---
-    easy_recv                                   :: proc(curl : rawptr, buffer : rawptr, buflen : uint, n : ^uint) -> CURLcode ---
-    easy_send                                   :: proc(curl : rawptr, buffer : rawptr, buflen : uint, n : ^uint) -> CURLcode ---
-    easy_upkeep                                 :: proc(curl : rawptr) -> CURLcode ---
-    multi_add_handle                            :: proc(multi_handle : rawptr, curl_handle : rawptr) -> CURLMcode ---
-    multi_remove_handle                         :: proc(multi_handle : rawptr, curl_handle : rawptr) -> CURLMcode ---
-    multi_fdset                                 :: proc(multi_handle : rawptr, read_fd_set : ^fd_set, write_fd_set : ^fd_set, exc_fd_set : ^fd_set, max_fd : ^c.int) -> CURLMcode ---
-    easy_init                                   :: proc() -> rawptr ---
-    easy_duphandle                              :: proc(curl : rawptr) -> rawptr ---
-    multi_init                                  :: proc() -> rawptr ---
-    strequal                                    :: proc(s1 : cstring, s2 : cstring) -> c.int ---
-    strnequal                                   :: proc(s1 : cstring, s2 : cstring, n : uint) -> c.int ---
-    mime_init                                   :: proc(easy : rawptr) -> ^mime ---
-    mime_free                                   :: proc(mime : ^mime) ---
-    mime_addpart                                :: proc(mime : ^mime) -> ^mimepart ---
-    mime_name                                   :: proc(part : ^mimepart, name : cstring) -> CURLcode ---
-    mime_filename                               :: proc(part : ^mimepart, filename : cstring) -> CURLcode ---
-    mime_type                                   :: proc(part : ^mimepart, mimetype : cstring) -> CURLcode ---
-    mime_encoder                                :: proc(part : ^mimepart, encoding : cstring) -> CURLcode ---
-    mime_data                                   :: proc(part : ^mimepart, data : cstring, datasize : uint) -> CURLcode ---
-    mime_filedata                               :: proc(part : ^mimepart, filename : cstring) -> CURLcode ---
-    mime_data_cb                                :: proc(part : ^mimepart, datasize : off_t, readfunc : read_callback, seekfunc : seek_callback, freefunc : free_callback, arg : rawptr) -> CURLcode ---
-    mime_subparts                               :: proc(part : ^mimepart, subparts : ^mime) -> CURLcode ---
-    mime_headers                                :: proc(part : ^mimepart, headers : ^slist, take_ownership : c.int) -> CURLcode ---
-    formadd                                     :: proc(_httppost : ^^httppost, last_post : ^^httppost, #c_vararg __args : ..any) -> CURLFORMcode ---
-    multi_wait                                  :: proc(multi_handle : rawptr, extra_fds : ^waitfd, extra_nfds : c.uint, timeout_ms : c.int, ret : ^c.int) -> CURLMcode ---
-    multi_poll                                  :: proc(multi_handle : rawptr, extra_fds : ^waitfd, extra_nfds : c.uint, timeout_ms : c.int, ret : ^c.int) -> CURLMcode ---
-    multi_wakeup                                :: proc(multi_handle : rawptr) -> CURLMcode ---
-    multi_perform                               :: proc(multi_handle : rawptr, running_handles : ^c.int) -> CURLMcode ---
-    multi_cleanup                               :: proc(multi_handle : rawptr) -> CURLMcode ---
-    multi_socket                                :: proc(multi_handle : rawptr, s : socket_t, running_handles : ^c.int) -> CURLMcode ---
-    multi_socket_action                         :: proc(multi_handle : rawptr, s : socket_t, ev_bitmask : c.int, running_handles : ^c.int) -> CURLMcode ---
-    multi_info_read                             :: proc(multi_handle : rawptr, msgs_in_queue : ^c.int) -> ^CURLMsg ---
-    multi_strerror                              :: proc(CURLMcode) -> cstring ---
-    formget                                     :: proc(form : ^httppost, arg : rawptr, append : formget_callback) -> c.int ---
-    formfree                                    :: proc(form : ^httppost) ---
-    getenv                                      :: proc(variable : cstring) -> cstring ---
-    version                                     :: proc() -> cstring ---
-    easy_escape                                 :: proc(handle : rawptr, string : cstring, length : c.int) -> cstring ---
-    escape                                      :: proc(string : cstring, length : c.int) -> cstring ---
-    easy_unescape                               :: proc(handle : rawptr, string : cstring, length : c.int, outlength : ^c.int) -> cstring ---
-    unescape                                    :: proc(string : cstring, length : c.int) -> cstring ---
-    free                                        :: proc(p : rawptr) ---
-    global_init                                 :: proc(flags : c.long) -> CURLcode ---
-    global_init_mem                             :: proc(flags : c.long, m : malloc_callback, f : free_callback, r : realloc_callback, s : strdup_callback, c : calloc_callback) -> CURLcode ---
-    global_cleanup                              :: proc() ---
-    global_sslset                               :: proc(id : sslbackend, name : cstring, avail : ^^^ssl_backend) -> CURLsslset ---
-    slist_append                                :: proc(^slist, cstring) -> ^slist ---
-    slist_free_all                              :: proc(^slist) ---
-    getdate                                     :: proc(p : cstring, unused : ^time_t) -> time_t ---
-    share_init                                  :: proc() -> rawptr ---
-    share_setopt                                :: proc(rawptr, CURLSHoption, #c_vararg ..any) -> CURLSHcode ---
-    share_cleanup                               :: proc(rawptr) -> CURLSHcode ---
-    version_info                                :: proc(CURLversion) -> ^version_info_data ---
-    easy_strerror                               :: proc(CURLcode) -> cstring ---
-    share_strerror                              :: proc(CURLSHcode) -> cstring ---
-    easy_pause                                  :: proc(handle : rawptr, bitmask : c.int) -> CURLcode ---
-    multi_socket_all                            :: proc(multi_handle : rawptr, running_handles : ^c.int) -> CURLMcode ---
-    easy_option_by_name                         :: proc(name : cstring) -> ^easyoption ---
-    easy_option_by_id                           :: proc(id : CURLoption) -> ^easyoption ---
-    easy_option_next                            :: proc(prev : ^easyoption) -> ^easyoption ---
-    url                                         :: proc() -> ^CURLU ---
-    url_cleanup                                 :: proc(handle : ^CURLU) ---
-    url_dup                                     :: proc(in_ : ^CURLU) -> ^CURLU ---
-    url_get                                     :: proc(handle : ^CURLU, what : CURLUPart, part : ^cstring, flags : c.uint) -> CURLUcode ---
-    url_set                                     :: proc(handle : ^CURLU, what : CURLUPart, part : cstring, flags : c.uint) -> CURLUcode ---
-    multi_timeout                               :: proc(multi_handle : rawptr, milliseconds : ^c.long) -> CURLMcode ---
-    multi_setopt                                :: proc(multi_handle : rawptr, option : CURLMoption, #c_vararg __args : ..any) -> CURLMcode ---
-    multi_assign                                :: proc(multi_handle : rawptr, sockfd : socket_t, sockp : rawptr) -> CURLMcode ---
-    pushheader_bynum                            :: proc(h : ^pushheaders, num : uint) -> cstring ---
-    pushheader_byname                           :: proc(h : ^pushheaders, name : cstring) -> cstring ---
+    easy_setopt :: proc(curl: rawptr, option: CURLoption, #c_vararg __args: ..any) -> CURLcode ---
+    easy_perform :: proc(curl: rawptr) -> CURLcode ---
+    easy_cleanup :: proc(curl: rawptr) ---
+    easy_getinfo :: proc(curl: rawptr, info: CURLINFO, #c_vararg __args: ..any) -> CURLcode ---
+    easy_reset :: proc(curl: rawptr) ---
+    easy_recv :: proc(curl: rawptr, buffer: rawptr, buflen: uint, n: ^uint) -> CURLcode ---
+    easy_send :: proc(curl: rawptr, buffer: rawptr, buflen: uint, n: ^uint) -> CURLcode ---
+    easy_upkeep :: proc(curl: rawptr) -> CURLcode ---
+    multi_add_handle :: proc(multi_handle: rawptr, curl_handle: rawptr) -> CURLMcode ---
+    multi_remove_handle :: proc(multi_handle: rawptr, curl_handle: rawptr) -> CURLMcode ---
+    multi_fdset :: proc(multi_handle: rawptr, read_fd_set: ^fd_set, write_fd_set: ^fd_set, exc_fd_set: ^fd_set, max_fd: ^c.int) -> CURLMcode ---
+    easy_init :: proc() -> rawptr ---
+    easy_duphandle :: proc(curl: rawptr) -> rawptr ---
+    multi_init :: proc() -> rawptr ---
+    strequal :: proc(s1: cstring, s2: cstring) -> c.int ---
+    strnequal :: proc(s1: cstring, s2: cstring, n: uint) -> c.int ---
+    mime_init :: proc(easy: rawptr) -> ^mime ---
+    mime_free :: proc(mime: ^mime) ---
+    mime_addpart :: proc(mime: ^mime) -> ^mimepart ---
+    mime_name :: proc(part: ^mimepart, name: cstring) -> CURLcode ---
+    mime_filename :: proc(part: ^mimepart, filename: cstring) -> CURLcode ---
+    mime_type :: proc(part: ^mimepart, mimetype: cstring) -> CURLcode ---
+    mime_encoder :: proc(part: ^mimepart, encoding: cstring) -> CURLcode ---
+    mime_data :: proc(part: ^mimepart, data: cstring, datasize: uint) -> CURLcode ---
+    mime_filedata :: proc(part: ^mimepart, filename: cstring) -> CURLcode ---
+    mime_data_cb :: proc(part: ^mimepart, datasize: off_t, readfunc: read_callback, seekfunc: seek_callback, freefunc: free_callback, arg: rawptr) -> CURLcode ---
+    mime_subparts :: proc(part: ^mimepart, subparts: ^mime) -> CURLcode ---
+    mime_headers :: proc(part: ^mimepart, headers: ^slist, take_ownership: c.int) -> CURLcode ---
+    formadd :: proc(_httppost: ^^httppost, last_post: ^^httppost, #c_vararg __args: ..any) -> CURLFORMcode ---
+    multi_wait :: proc(multi_handle: rawptr, extra_fds: ^waitfd, extra_nfds: c.uint, timeout_ms: c.int, ret: ^c.int) -> CURLMcode ---
+    multi_poll :: proc(multi_handle: rawptr, extra_fds: ^waitfd, extra_nfds: c.uint, timeout_ms: c.int, ret: ^c.int) -> CURLMcode ---
+    multi_wakeup :: proc(multi_handle: rawptr) -> CURLMcode ---
+    multi_perform :: proc(multi_handle: rawptr, running_handles: ^c.int) -> CURLMcode ---
+    multi_cleanup :: proc(multi_handle: rawptr) -> CURLMcode ---
+    multi_socket :: proc(multi_handle: rawptr, s: socket_t, running_handles: ^c.int) -> CURLMcode ---
+    multi_socket_action :: proc(multi_handle: rawptr, s: socket_t, ev_bitmask: c.int, running_handles: ^c.int) -> CURLMcode ---
+    multi_info_read :: proc(multi_handle: rawptr, msgs_in_queue: ^c.int) -> ^CURLMsg ---
+    multi_strerror :: proc(_: CURLMcode) -> cstring ---
+    formget :: proc(form: ^httppost, arg: rawptr, append: formget_callback) -> c.int ---
+    formfree :: proc(form: ^httppost) ---
+    getenv :: proc(variable: cstring) -> cstring ---
+    version :: proc() -> cstring ---
+    easy_escape :: proc(handle: rawptr, string: cstring, length: c.int) -> cstring ---
+    escape :: proc(string: cstring, length: c.int) -> cstring ---
+    easy_unescape :: proc(handle: rawptr, string: cstring, length: c.int, outlength: ^c.int) -> cstring ---
+    unescape :: proc(string: cstring, length: c.int) -> cstring ---
+    free :: proc(p: rawptr) ---
+    global_init :: proc(flags: c.long) -> CURLcode ---
+    global_init_mem :: proc(flags: c.long, m: malloc_callback, f: free_callback, r: realloc_callback, s: strdup_callback, c: calloc_callback) -> CURLcode ---
+    global_cleanup :: proc() ---
+    global_sslset :: proc(id: sslbackend, name: cstring, avail: ^^^ssl_backend) -> CURLsslset ---
+    slist_append :: proc(_: ^slist, _: cstring) -> ^slist ---
+    slist_free_all :: proc(_: ^slist) ---
+    getdate :: proc(p: cstring, unused: ^time_t) -> time_t ---
+    share_init :: proc() -> rawptr ---
+    share_setopt :: proc(_: rawptr, _: CURLSHoption, #c_vararg _: ..any) -> CURLSHcode ---
+    share_cleanup :: proc(_: rawptr) -> CURLSHcode ---
+    version_info :: proc(_: CURLversion) -> ^version_info_data ---
+    easy_strerror :: proc(_: CURLcode) -> cstring ---
+    share_strerror :: proc(_: CURLSHcode) -> cstring ---
+    easy_pause :: proc(handle: rawptr, bitmask: c.int) -> CURLcode ---
+    multi_socket_all :: proc(multi_handle: rawptr, running_handles: ^c.int) -> CURLMcode ---
+    easy_option_by_name :: proc(name: cstring) -> ^easyoption ---
+    easy_option_by_id :: proc(id: CURLoption) -> ^easyoption ---
+    easy_option_next :: proc(prev: ^easyoption) -> ^easyoption ---
+    url :: proc() -> ^CURLU ---
+    url_cleanup :: proc(handle: ^CURLU) ---
+    url_dup :: proc(in_: ^CURLU) -> ^CURLU ---
+    url_get :: proc(handle: ^CURLU, what: CURLUPart, part: ^cstring, flags: c.uint) -> CURLUcode ---
+    url_set :: proc(handle: ^CURLU, what: CURLUPart, part: cstring, flags: c.uint) -> CURLUcode ---
+    multi_timeout :: proc(multi_handle: rawptr, milliseconds: ^c.long) -> CURLMcode ---
+    multi_setopt :: proc(multi_handle: rawptr, option: CURLMoption, #c_vararg __args: ..any) -> CURLMcode ---
+    multi_assign :: proc(multi_handle: rawptr, sockfd: socket_t, sockp: rawptr) -> CURLMcode ---
+    pushheader_bynum :: proc(h: ^pushheaders, num: uint) -> cstring ---
+    pushheader_byname :: proc(h: ^pushheaders, name: cstring) -> cstring ---
 }

@@ -3,13 +3,13 @@ package jpx
 // Loading and handling of a gps tracks / activities
 
 import "base:runtime"
-import "core:math"
-import "core:time/datetime"
-import "core:time"
+import "core:fmt"
 import "core:log"
+import "core:math"
 import "core:strconv"
 import "core:strings"
-import "core:fmt"
+import "core:time"
+import "core:time/datetime"
 
 import "core:encoding/xml"
 
@@ -35,53 +35,56 @@ Extensions :: bit_set[ExtData]
 // Not all the values in this struct are guaranteed
 // to be loaded as track points have variable data
 Track_Point :: struct {
-    coord: Coord,
-    time: Maybe(DateTime),
+    coord:     Coord,
+    time:      Maybe(DateTime),
     elevation: f32,
 
     // Extensions
-    distance: f32, // meter
-    hr: u32,
-    speed: f32, // m/s
+    distance:  f32, // meter
+    hr:        u32,
+    speed:     f32, // m/s
 }
 
 Metadata :: struct {
-    text: cstring,
+    text:      cstring,
     date_time: Maybe(DateTime),
 }
 
 Gps_Track :: struct {
-    metadata: Metadata,
-    name: cstring,
-    type: Activity_Type,
-    points: [dynamic]Track_Point,
-
-    duration: time.Duration,
-
-    avg_hr: u32,
-    max_hr: u32,
+    metadata:       Metadata,
+    name:           cstring,
+    type:           Activity_Type,
+    points:         [dynamic]Track_Point,
+    duration:       time.Duration,
+    avg_hr:         u32,
+    max_hr:         u32,
 
     // all in meters and seconds
     total_distance: f32,
-    avg_speed: f32,
-    max_speed: f32,
+    avg_speed:      f32,
+    max_speed:      f32,
 
     // Elevation
     elevation_gain: f32,
-    max_elevation: f32,
-    min_elevation: f32,
-
-    allocator: runtime.Allocator
+    max_elevation:  f32,
+    min_elevation:  f32,
+    allocator:      runtime.Allocator,
 }
 
 @(rodata)
 activity_types := [Activity_Type]string {
-    .None = "",
+    .None    = "",
     .Running = "running",
     .Cycling = "cycling",
 }
 
-track_load_from_file :: proc(file: string, allocator := context.allocator) -> (track: Gps_Track, ok: bool) {
+track_load_from_file :: proc(
+    file: string,
+    allocator := context.allocator,
+) -> (
+    track: Gps_Track,
+    ok: bool,
+) {
     return _track_load_from_file(file, allocator)
 }
 
@@ -104,22 +107,24 @@ track_load_from_gpx :: proc(file_data: []u8) -> (track: Gps_Track, ok: bool) {
     root := doc.elements[0]
     for value in root.value {
         switch v in value {
-        case string: {
-            log.error("Invalid gpx format")
-            return {}, false
-        }
-        case xml.Element_ID: {
-            id := value.(xml.Element_ID)
-            ident := doc.elements[id].ident
-            if strings.compare(ident, "metadata") == 0 {
-                track.metadata = track_get_metadata(doc.elements, id)
-            } else if strings.compare(ident, "trk") == 0 {
-                track_load_data(&track, doc.elements, id)
-            } else {
+        case string:
+            {
                 log.error("Invalid gpx format")
                 return {}, false
             }
-        }
+        case xml.Element_ID:
+            {
+                id := value.(xml.Element_ID)
+                ident := doc.elements[id].ident
+                if strings.compare(ident, "metadata") == 0 {
+                    track.metadata = track_get_metadata(doc.elements, id)
+                } else if strings.compare(ident, "trk") == 0 {
+                    track_load_data(&track, doc.elements, id)
+                } else {
+                    log.error("Invalid gpx format")
+                    return {}, false
+                }
+            }
         }
 
     }
@@ -209,7 +214,11 @@ track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: x
 
 track_load_next_point :: proc(
     elements: [dynamic]xml.Element,
-    point_id: xml.Element_ID) -> (track_point: Track_Point, loaded_ext: Extensions) {
+    point_id: xml.Element_ID,
+) -> (
+    track_point: Track_Point,
+    loaded_ext: Extensions,
+) {
 
     point_elem := elements[point_id]
     ok: bool
@@ -251,7 +260,7 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
     point_count := len(track.points)
 
     // smoothed elevation and speed
-    for i in 1..<len(track.points) {
+    for i in 1 ..< len(track.points) {
         point := track.points[i]
         prev := track.points[i - 1]
 
@@ -261,17 +270,19 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
 
         // calculate time diff for paused time and speed
         secs: f64
-        if point.time != nil  {
+        if point.time != nil {
             start, _ := time.datetime_to_time(prev.time.(DateTime))
             end, _ := time.datetime_to_time(point.time.(DateTime))
             time_diff := time.diff(start, end)
-            assert(time_diff >= 0)
             secs = time.duration_seconds(time_diff)
+
             // if points have a delta greater than 30s it is counted as a pause
-            if secs > 30.0 {
+            // We need to use abs to handle points that have absurd time readings since the
+            // following delta will subtract from the paused time fixing the issue
+            if abs(secs) > 30.0 {
                 paused_time += secs
             }
-        } 
+        }
 
         // NOTE: we don't always get all the data so some values need to be calculated
         // so we use haversine for distance
@@ -322,8 +333,11 @@ track_calculate_stats :: proc(track: ^Gps_Track, loaded_ext: Extensions) {
     }
 }
 
-track_load_extensions :: proc(track_point: ^Track_Point, 
-    elements: [dynamic]xml.Element, elem: xml.Element) -> Extensions {
+track_load_extensions :: proc(
+    track_point: ^Track_Point,
+    elements: [dynamic]xml.Element,
+    elem: xml.Element,
+) -> Extensions {
 
     loaded_extensions: Extensions
     for val in elem.value {
@@ -333,7 +347,7 @@ track_load_extensions :: proc(track_point: ^Track_Point,
 
         // sometimes instead of extensions being under gpxdata:
         // they are values of a single gpxtpx element
-        if strings.compare(ident, "gpxtpx:TrackPointExtension") == 0{
+        if strings.compare(ident, "gpxtpx:TrackPointExtension") == 0 {
             for tpx_val in ext_elem.value {
                 id := tpx_val.(xml.Element_ID)
                 tpx_elem := elements[id]
@@ -341,7 +355,7 @@ track_load_extensions :: proc(track_point: ^Track_Point,
                 if strings.compare(ident, "gpxtpx:hr") == 0 {
                     val := tpx_elem.value[0].(string)
                     track_point.hr = auto_cast strconv.parse_uint(val) or_continue
-                    loaded_extensions += { .Heartrate }
+                    loaded_extensions += {.Heartrate}
                 } else if strings.compare(ident, "gpxtpx:cad") == 0 {
                     // cadence
                 }
@@ -349,15 +363,15 @@ track_load_extensions :: proc(track_point: ^Track_Point,
         } else if strings.compare(ident, "gpxdata:hr") == 0 {
             val := ext_elem.value[0].(string)
             track_point.hr = auto_cast strconv.parse_uint(val) or_continue
-            loaded_extensions += { .Heartrate }
+            loaded_extensions += {.Heartrate}
         } else if strings.compare(ident, "gpxdata:distance") == 0 {
             val := ext_elem.value[0].(string)
             track_point.distance = auto_cast strconv.parse_f32(val) or_continue
-            loaded_extensions += { .Distance }
+            loaded_extensions += {.Distance}
         } else if strings.compare(ident, "gpxdata:speed") == 0 {
             val := ext_elem.value[0].(string)
             track_point.speed = auto_cast strconv.parse_f32(val) or_continue
-            loaded_extensions += { .Speed }
+            loaded_extensions += {.Speed}
         }
     }
 
@@ -398,21 +412,21 @@ parse_date_time :: proc(date_time_str: string) -> (date_time: DateTime, ok: bool
     // Date
     i := strings.index_rune(date_str, '-')
     date_time.year = auto_cast strconv.parse_int(date_str[:i]) or_return
-    date_str = date_str[i+1:]
+    date_str = date_str[i + 1:]
     i = strings.index_rune(date_str, '-')
     date_time.month = auto_cast strconv.parse_int(date_str[:i]) or_return
-    date_str = date_str[i+1:]
+    date_str = date_str[i + 1:]
     date_time.day = auto_cast strconv.parse_int(date_str) or_return
 
     // Time
     i = strings.index_rune(time_str, ':')
     date_time.hour = auto_cast strconv.parse_int(time_str[:i]) or_return
 
-    time_str = time_str[i+1:]
+    time_str = time_str[i + 1:]
     i = strings.index_rune(time_str, ':')
     date_time.minute = auto_cast strconv.parse_int(time_str[:i]) or_return
 
-    time_str = time_str[i+1:]
+    time_str = time_str[i + 1:]
     date_time.second = auto_cast strconv.parse_int(time_str) or_return
 
     return
