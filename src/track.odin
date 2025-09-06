@@ -107,13 +107,11 @@ track_load_from_gpx :: proc(file_data: []u8) -> (track: Gps_Track, ok: bool) {
     root := doc.elements[0]
     for value in root.value {
         switch v in value {
-        case string:
-            {
+        case string: {
                 log.error("Invalid gpx format")
                 return {}, false
-            }
-        case xml.Element_ID:
-            {
+        }
+        case xml.Element_ID: {
                 id := value.(xml.Element_ID)
                 ident := doc.elements[id].ident
                 if strings.compare(ident, "metadata") == 0 {
@@ -121,8 +119,7 @@ track_load_from_gpx :: proc(file_data: []u8) -> (track: Gps_Track, ok: bool) {
                 } else if strings.compare(ident, "trk") == 0 {
                     track_load_data(&track, doc.elements, id)
                 } else {
-                    log.error("Invalid gpx format")
-                    return {}, false
+                    log.warn("Unhandled element:", ident);
                 }
             }
         }
@@ -148,7 +145,6 @@ track_unload :: proc(track: ^Gps_Track) {
 
 // TODO: could add errors and abort parsing for failed type asserts
 // same thing could be done for failed number parsing, 
-
 track_load_data :: proc(track: ^Gps_Track, elements: [dynamic]xml.Element, id: xml.Element_ID) {
     trk_elem := elements[id]
 

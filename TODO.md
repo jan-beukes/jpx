@@ -17,5 +17,5 @@ improve cpu usage by waiting for input or change in tile_render_list
 # GUI
 - [x] GUI for copyright
 - [x] gpx loading
-- [ ] GUI for stats, plots
+- [x] GUI for stats, plots
 - [ ] GUI for entering api keys
