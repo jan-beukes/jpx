@@ -385,11 +385,13 @@ track_get_metadata :: proc(elements: [dynamic]xml.Element, id: xml.Element_ID) -
         ident := element.ident
 
         if strings.compare(ident, "link") == 0 {
-            text_id := element.value[0].(xml.Element_ID)
-            text: string
-            text = elements[text_id].value[0].(string)
-            metadata.text = strings.clone_to_cstring(text)
-
+            if len(element.value) > 0 {
+                text_id := element.value[0].(xml.Element_ID)
+                text: string
+                text = elements[text_id].value[0].(string)
+                fmt.println(text)
+                metadata.text = strings.clone_to_cstring(text)
+            }
         } else if strings.compare(ident, "time") == 0 {
             date_time_str := element.value[0].(string)
             metadata.date_time = parse_date_time(date_time_str) or_continue

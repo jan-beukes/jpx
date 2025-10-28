@@ -1275,7 +1275,7 @@ MOPT_LASTENTRY :: 17
 
 /***** libcurl *****/
 when ODIN_OS == .Windows {
-    foreign import libcurl "libcurl.lib"
+    foreign import libcurl "libcurl.dll.a"
 } else {
     foreign import libcurl "system:curl"
 }
