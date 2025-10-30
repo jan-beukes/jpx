@@ -24,6 +24,19 @@ import rl "vendor:raylib"
 
 CACHE_DIR :: ".cache"
 
+USAGE :: `
+Usage: jpx [OPTIONS] [FILE]
+
+file formats: gpx
+
+OPTIONS:
+    -s          map style (0 - 3)
+    -k          api key for provided map style
+    --help      show this help
+    --offline   only use local cached tiles
+`
+
+
 Tile_Save :: struct {
     tile:       Tile,
     style:      Layer_Style,
@@ -116,31 +129,40 @@ parse_flags :: proc(argv: []string) -> Flags {
         is_last := i == len(argv) - 1
 
         // flags that expect a value can't be the last arg
-        if strings.compare(argv[i], "-s") == 0 {
-            if is_last {
-                fmt.eprint(USAGE);os.exit(1)
-            }
-            i += 1
-            num, ok := strconv.parse_int(argv[i])
-            if !ok || num >= len(Layer_Style) {
+        if (strings.starts_with(argv[i], "-")) {
+
+            if strings.compare(argv[i], "-s") == 0 {
+                if is_last {
+                    fmt.eprint(USAGE)
+                    os.exit(1)
+                }
+                i += 1
+                num, ok := strconv.parse_int(argv[i])
+                if !ok || num >= len(Layer_Style) {
+                    fmt.eprint(USAGE)
+                    os.exit(1)
+                }
+                flags.layer_style = Layer_Style(num)
+
+            } else if strings.compare(argv[i], "-k") == 0 {
+                if is_last {
+                    fmt.eprint(USAGE)
+                    os.exit(1)
+                }
+                i += 1
+                flags.api_key = argv[i]
+
+            } else if strings.compare(argv[i], "--offline") == 0 {
+                flags.offline = true
+            } else if strings.compare(argv[i], "--help") == 0 {
+                fmt.println(USAGE)
+                os.exit(0)
+            } else {
                 fmt.eprint(USAGE)
                 os.exit(1)
             }
-            flags.layer_style = Layer_Style(num)
-        } else if strings.compare(argv[i], "-k") == 0 {
-            if is_last {
-                fmt.eprint(USAGE);os.exit(1)
-            }
-            i += 1
-            flags.api_key = argv[i]
-            // file must always be first if it is provided
-        } else if strings.compare(argv[i], "--offline") == 0 {
-            flags.offline = true
-        } else if i == 1 {
-            flags.input_file = argv[i]
         } else {
-            fmt.eprint(USAGE)
-            os.exit(1)
+            flags.input_file = argv[i]
         }
     }
     return flags

@@ -15,13 +15,14 @@
 
 ## Usage
 ```
-jpx [file] [OPTIONS]
+jpx [OPTIONS] [FILE]
 
 file formats: gpx
 
 OPTIONS:
     -s          map style (0 - 3)
     -k          api key for provided map style
+    --help      show this help
     --offline   only use local cached tiles
 ```
 | Style | Name             | Access Requirement                          |

@@ -32,17 +32,6 @@ PANEL_SIZE :: 300.0
 FONT_DATA :: #load("../res/font.ttf")
 ICON_DATA :: #load("../res/icon.png")
 
-USAGE :: `
-Usage: jpx [file] [OPTIONS]
-
-file formats: gpx
-
-OPTIONS:
-    -s          map style (0 - 3)
-    -k          api key for provided map style
-    --offline   only use local cached tiles
-`
-
 
 Map_Screen :: struct {
     center:        Mercator_Coord,
