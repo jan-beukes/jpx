@@ -1272,10 +1272,17 @@ MOPT_MAX_CONCURRENT_STREAMS :: 0 + 16
 MOPT_LASTENTRY :: 17
 /* } */
 
-
 /***** libcurl *****/
 when ODIN_OS == .Windows {
-    foreign import libcurl "libcurl.dll.a"
+    // link statically on windows
+    foreign import libcurl {
+        "libcurl_a.lib",
+        "system:crypt32.lib",
+        "system:normaliz.lib",
+        "system:secur32.lib",
+        "system:ws2_32.lib",
+        "system:wldap32.lib",
+    }
 } else {
     foreign import libcurl "system:curl"
 }
