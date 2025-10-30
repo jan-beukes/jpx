@@ -121,7 +121,7 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     if rl.CheckCollisionPointRec(mouse_pos, handle_rect) {
         gui_mouse_cursor = .POINTING_HAND
         ui_focused^ = true
-        if rl.IsMouseButtonPressed(.LEFT) {
+        if rl.IsMouseButtonReleased(.LEFT) {
             panel.is_open = !panel.is_open
             panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
         }
@@ -468,7 +468,7 @@ gui_panel_stats :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     if rl.CheckCollisionPointRec(mouse_pos, handle_rect) {
         gui_mouse_cursor = .POINTING_HAND
         ui_focused^ = true
-        if rl.IsMouseButtonPressed(.LEFT) {
+        if rl.IsMouseButtonReleased(.LEFT) {
             panel.is_open = !panel.is_open
             panel.anim_frame = i32(PANEL_ANIM_TIME * f32(rl.GetFPS()))
         }
@@ -695,7 +695,7 @@ gui_toggle :: proc(pos: rl.Vector2, radius: f32, color: rl.Color, toggled: ^bool
     hover := false
     if rl.CheckCollisionPointCircle(mouse_pos, pos, radius) {
         hover = true
-        if rl.IsMouseButtonPressed(.LEFT) {
+        if rl.IsMouseButtonReleased(.LEFT) {
             if toggled != nil do toggled^ = !toggled^
         }
     }
@@ -717,7 +717,7 @@ gui_button :: proc(rect: rl.Rectangle, text: cstring, ui_focused: ^bool) -> bool
         ui_focused^ = true
         hover = true
         gui_mouse_cursor = .POINTING_HAND
-        if rl.IsMouseButtonPressed(.LEFT) {
+        if rl.IsMouseButtonReleased(.LEFT) {
             pressed = true
         }
     }
@@ -745,7 +745,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
     if rl.CheckCollisionPointRec(mouse_pos, rect) {
         icon_hover = true
         ui_focused^ = true
-        if rl.IsMouseButtonPressed(.LEFT) {
+        if rl.IsMouseButtonReleased(.LEFT) {
             expanded = !expanded
         }
         gui_mouse_cursor = .POINTING_HAND
@@ -780,7 +780,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
         if rl.CheckCollisionPointRec(mouse_pos, text_rect) {
             text_hover = true
             gui_mouse_cursor = .POINTING_HAND
-            if rl.IsMouseButtonPressed(.LEFT) {
+            if rl.IsMouseButtonReleased(.LEFT) {
                 rl.OpenURL("https://www.openstreetmap.org/about")
             }
         }
@@ -800,7 +800,7 @@ gui_copyright :: proc(rect: rl.Rectangle, style: Layer_Style, ui_focused: ^bool)
             if rl.CheckCollisionPointRec(mouse_pos, text_rect) {
                 text_hover = true
                 gui_mouse_cursor = .POINTING_HAND
-                if rl.IsMouseButtonPressed(.LEFT) {
+                if rl.IsMouseButtonReleased(.LEFT) {
                     if style == .Jawg {
                         rl.OpenURL("https://www.jawg.io")
                     } else {
@@ -845,7 +845,7 @@ gui_drop_down :: proc(
     mouse_pos := rl.GetMousePosition()
 
     if rl.CheckCollisionPointRec(mouse_pos, base_rect) {
-        if rl.IsMouseButtonPressed(.LEFT) {
+        if rl.IsMouseButtonReleased(.LEFT) {
             expanded^ = !expanded^
         }
         hover_item = 0
@@ -854,7 +854,7 @@ gui_drop_down :: proc(
         for i in 0 ..< count {
             rect.y += rect.height
             if rl.CheckCollisionPointRec(mouse_pos, rect) {
-                if rl.IsMouseButtonPressed(.LEFT) {
+                if rl.IsMouseButtonReleased(.LEFT) {
                     did_select = true
                     selected^ = i
                 }

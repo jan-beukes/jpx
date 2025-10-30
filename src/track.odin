@@ -389,7 +389,6 @@ track_get_metadata :: proc(elements: [dynamic]xml.Element, id: xml.Element_ID) -
                 text_id := element.value[0].(xml.Element_ID)
                 text: string
                 text = elements[text_id].value[0].(string)
-                fmt.println(text)
                 metadata.text = strings.clone_to_cstring(text)
             }
         } else if strings.compare(ident, "time") == 0 {

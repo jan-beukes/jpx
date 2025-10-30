@@ -111,28 +111,7 @@ var Module = {
                 // Reset the input value
                 event.target.value = null
             }
-
-            // FIX: dispatch a fake mouse release to browser to reset input
-            canvas.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
         })
-
-        //--- Drag and drop events---
-        canvas.addEventListener("dragenter", function(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            canvas.classList.add("drag-over"); // visual stuff
-        })
-
-        canvas.addEventListener("dragover", function(event) {
-            event.preventDefault(); // for drop event to fire
-            event.stopPropagation();
-        })
-
-        canvas.addEventListener('dragleave', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            canvas.classList.remove('drag-over');
-        });
 
         canvas.addEventListener("drop", function(event) {
             event.preventDefault();

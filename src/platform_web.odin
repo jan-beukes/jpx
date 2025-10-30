@@ -30,9 +30,7 @@ init_platform :: proc() {
         state.config.api_keys[flags.layer_style])
 }
 
-deinit_platform :: proc() {
-    openFileDialog()
-}
+deinit_platform :: proc() {}
 
 @(export) 
 track_load_callback :: proc "c" (data: rawptr, len: i32) {
@@ -56,9 +54,7 @@ _track_load_from_file :: proc(file: string, allocator := context.allocator) -> (
 
 // need to seperate since timezone isn't implemented on web
 // could implement this with js
-date_time_to_local :: proc(date_time: ^datetime.DateTime) {
-
-}
+date_time_to_local :: proc(date_time: ^datetime.DateTime) {}
 
 /**********
 * REQUEST
@@ -107,5 +103,4 @@ request_tile :: proc(tile: Tile) {
     fetchTile(transmute([^]u8)url, i32(len(url)), tile.x, tile.y, tile.zoom)
 }
 
-poll_requests :: proc(cache: ^Tile_Cache) {
-}
+poll_requests :: proc(cache: ^Tile_Cache) {}

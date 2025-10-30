@@ -15,7 +15,9 @@ export EMSDK_QUIET=1
 # The emcc call will be fed the actual raylib library file. That stuff will end
 # up in env.o
 #
-odin build src/main_web -target:js_wasm32 -build-mode:obj -define:RAYLIB_WASM_LIB=env.o -out:$OUT_DIR/jpx.wasm.o -debug
+
+(set -x
+    odin build src/main_web -target:js_wasm32 -build-mode:obj -define:RAYLIB_WASM_LIB=env.o -out:$OUT_DIR/jpx.wasm.o -debug)
 
 ODIN_PATH=$(odin root)
 
@@ -27,7 +29,8 @@ files="$OUT_DIR/jpx.wasm.o ${ODIN_PATH}/vendor/raylib/wasm/libraylib.a"
 flags="-sUSE_GLFW=3 -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sASSERTIONS -sALLOW_MEMORY_GROWTH --shell-file src/main_web/index_template.html"
 
 # For debugging: Add `-g` to `emcc`
-emcc -o $OUT_DIR/index.html $files $flags
+(set -x;
+    emcc -o $OUT_DIR/index.html $files $flags)
 
 rm $OUT_DIR/jpx.wasm.o
 
@@ -36,7 +39,7 @@ echo "Web build created in ${OUT_DIR}"
 # create commit and push to web build
 if [ "$#" -gt 0 ]; then
     if [ "$1" = "push" ]; then
-        LAST_COMMIT=$(git rev-parse HEAD)
+        LAST_COMMIT=$(git rev-parse --short HEAD)
         cd $OUT_DIR
 
         git add .
