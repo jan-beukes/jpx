@@ -1,6 +1,7 @@
 jpx
 jpx.ini
-web_build
-.cache
-curl-*
 *.gpx
+.cache
+
+web_build
+release
