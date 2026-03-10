@@ -208,7 +208,7 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
 
     //---Drawing Plots---
     PLOT_LINE_THICK :: 2
-    MAX_PLOT_POINTS :: 4096
+    MAX_PLOT_POINTS :: 2048
     rlgl.SetLineWidth(PLOT_LINE_THICK)
 
     has_time := track.duration != 0
@@ -268,7 +268,7 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
 
     //---Elevation---
     {
-        point_count: int = min(len(track.points), min(int(inner_rect.width), 4096))
+        point_count: int = min(len(track.points), min(int(inner_rect.width), MAX_PLOT_POINTS))
         point_step := f32(len(track.points)) / f32(point_count)
         dx := inner_rect.width / f32(point_count)
 
@@ -295,6 +295,8 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
             // unlike other plots we render triangles to fill out a polygon
             rl.DrawTriangle({px, y0}, {x, y}, {px, py}, rl.GRAY)
             rl.DrawTriangle({px, y0}, {x, y0}, {x, y}, rl.GRAY)
+            // rl.DrawTriangleLines({px, y0}, {x, y}, {px, py}, rl.GREEN)
+            // rl.DrawTriangleLines({px, y0}, {x, y0}, {x, y}, rl.RED)
 
             prev_point = point
         }
@@ -635,11 +637,11 @@ get_panel_rects :: proc(panel: Gui_Panel) -> (rl.Rectangle, rl.Rectangle) {
 
     // get current t for interpolation between open and close
     frame_count := f32(rl.GetFPS()) * PANEL_ANIM_TIME
-    t: f32
+    t := 1.0 - f32(panel.anim_frame) / f32(frame_count)
     if panel.is_open {
-        t = ease.cubic_in(1.0 - f32(panel.anim_frame) / f32(frame_count))
+        t = ease.cubic_in(t)
     } else {
-        t = ease.cubic_out(1.0 - f32(panel.anim_frame) / f32(frame_count))
+        t = ease.cubic_out(t)
     }
 
     // calculate rect and handle rect from animation frame based on location

@@ -520,8 +520,6 @@ update :: proc() {
     handle_ui()
 
     rl.EndDrawing()
-
-    free_all(context.temp_allocator)
 }
 
 
@@ -548,7 +546,7 @@ shutdown :: proc() {
 init :: proc() {
 
     // Raylib setup
-    rl.SetTraceLogLevel(.ERROR)
+    rl.SetTraceLogLevel(ODIN_DEBUG ? .WARNING : .NONE)
     rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
     rl.SetWindowMinSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)

@@ -264,8 +264,7 @@ add_tile :: proc(tiles: []^Tile_Data, count: ^int, tile: Tile, cache: ^Tile_Cach
 
 // calculate which tiles need to be rendered and add them to the list
 // The tiles array will be sorted with lower zoom levels first
-map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen, allocator :=
-    context.temp_allocator) -> []^Tile_Data {
+map_get_tiles :: proc(cache: ^Tile_Cache, map_screen: Map_Screen) -> []^Tile_Data {
 
     @(static) tiles: [512]^Tile_Data
 

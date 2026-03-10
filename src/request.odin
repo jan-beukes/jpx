@@ -50,7 +50,6 @@ Tile_Layer :: struct {
 
 Req_State :: struct {
     ready: bool,
-    m_handle: rawptr, // the global multi handle for libcurl
     active_requests: i32,
     tile_layer: Tile_Layer,
 }

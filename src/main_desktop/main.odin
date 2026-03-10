@@ -2,7 +2,6 @@ package main_desktop
 
 import jpx ".."
 import "core:os"
-import "core:os/os2"
 import "core:log"
 import "core:path/filepath"
 
@@ -16,18 +15,25 @@ main :: proc () {
     // relative in a global variable.
 
     // change to executable directory and make cache dir on desktop
-    executable_dir, err := os2.get_executable_directory(context.temp_allocator)
+    executable_dir, err := os.get_executable_directory(context.temp_allocator)
     if err != nil {
         log.error("Could not find executable directory")
         os.exit(1)
     }
-    cwd := os.get_current_directory()
-    os.set_current_directory(executable_dir)
+
+    cwd: string
+    cwd, err = os.get_working_directory(context.temp_allocator)
+    if err != nil {
+        log.error("Could get working directory")
+        os.exit(1)
+    }
+    os.set_working_directory(executable_dir)
     os.make_directory(jpx.CACHE_DIR)
 
     jpx.init_platform(cwd)
     jpx.init()
 
+    free_all(context.temp_allocator)
     for jpx.should_run() {
         jpx.update()
     }

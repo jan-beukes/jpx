@@ -18,9 +18,9 @@ import "core:thread"
 import "core:time/datetime"
 import "core:time/timezone"
 
-import "curl"
-import tinyfd "tinyfiledialogs"
+import "vendor:curl"
 import rl "vendor:raylib"
+import tinyfd "tinyfiledialogs"
 
 CACHE_DIR :: ".cache"
 
@@ -64,11 +64,13 @@ Thread_Context :: struct {
 }
 
 // platform request state
-@(private = "file")
+@(private="file")
+m_handle: ^curl.CURLM
+@(private="file")
 request_context: runtime.Context
-@(private = "file")
+@(private="file")
 thread_ctx: Thread_Context
-@(private = "file")
+@(private="file")
 is_offline: bool
 
 // the desktop specific initialization
@@ -100,9 +102,16 @@ init_platform :: proc(dir: string) {
     } else {
         // if launched from another directory we need to join the path given from main 
         // since we are currently in the directory of the executable
-        file :=
-            !filepath.is_abs(flags.input_file) ? filepath.join({dir, flags.input_file}) : flags.input_file
-        track, ok := track_load_from_file(file)
+        file_path := flags.input_file
+        if !os.is_absolute_path(file_path) {
+            path, err := os.join_path({dir, file_path}, context.temp_allocator)
+            if err != nil {
+                log.error("Could not join paths: %v + %v", dir, flags.input_file)
+            } else {
+                file_path = path
+            }
+        }
+        track, ok := track_load_from_file(file_path)
         if ok {
             open_new_track(track)
         }
@@ -111,12 +120,12 @@ init_platform :: proc(dir: string) {
     // platform state
     request_context = context
     is_offline = flags.offline
-    req_state.m_handle = curl.multi_init()
+    m_handle = curl.multi_init()
     thread.run(io_thread_proc)
 }
 
 deinit_platform :: proc() {
-    curl.multi_cleanup(req_state.m_handle)
+    curl.multi_cleanup(m_handle)
 }
 
 // Desktop flags/config
@@ -186,6 +195,7 @@ load_user_config :: proc() -> (config: Config) {
             config.api_keys[.Mapbox_Satelite] = key
         }
     }
+    log.info(config.api_keys)
 
     return
 }
@@ -208,12 +218,12 @@ _track_load_from_file :: proc(
 
     ext := filepath.ext(file)
     if strings.compare(ext, ".gpx") == 0 {
-        file_data := os.read_entire_file(file) or_return
+        file_data, err := os.read_entire_file(file, allocator)
+        if err != nil do return
+
         track, ok = track_load_from_gpx(file_data)
     } else {
         log.errorf("Could not load %s\nSupported formats: %s", file, SUPPORTED_FORMATS)
-        track = {}
-        ok = false
     }
     return
 }
@@ -260,6 +270,7 @@ io_thread_proc :: proc() {
         save, save_ok = queue.pop_front_safe(&thread_ctx.save_queue)
         sync.mutex_unlock(&thread_ctx.mutex)
 
+        // Idk why I am using raylib fs functions
         if read_ok {
             ft: cstring =
                 read.style == .Mapbox_Outdoors || read.style == .Mapbox_Satelite ? ".jpg" : ".png"
@@ -333,18 +344,18 @@ poll_requests :: proc(cache: ^Tile_Cache) {
     }
 
     // Curl
-    curl.multi_perform(req_state.m_handle, &req_state.active_requests)
+    curl.multi_perform(m_handle, &req_state.active_requests)
 
-    msg: ^curl.CURLMsg
+    msg: ^curl.Msg
     msgs_left: i32
-    msg = curl.multi_info_read(req_state.m_handle, &msgs_left)
+    msg = curl.multi_info_read(m_handle, &msgs_left)
     for msg != nil {
         // this one is done
-        if msg.msg == curl.MSG_DONE {
+        if msg.msg == .DONE {
             handle := msg.easy_handle
 
             chunk: ^Tile_Chunk
-            curl.easy_getinfo(handle, curl.INFO_PRIVATE, &chunk)
+            curl.easy_getinfo(handle, .PRIVATE, &chunk)
 
             // check for error on fetch
             result_ok: if msg.data.result == .E_OK {
@@ -401,7 +412,7 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 } else {
                     delete_key(cache, tile)
                     // this might not be a good idea but usefull for debuging
-                    log.error("Could not load tile", string(chunk.data[:]))
+                    log.error("Could not load tile as an image")
                 }
             } else {
                 log.error("Request failed", msg.data.result)
@@ -409,10 +420,10 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 
             // cleanup
             free(chunk)
-            curl.multi_remove_handle(req_state.m_handle, handle)
+            curl.multi_remove_handle(m_handle, handle)
             curl.easy_cleanup(handle)
         }
-        msg = curl.multi_info_read(req_state.m_handle, &msgs_left)
+        msg = curl.multi_info_read(m_handle, &msgs_left)
     }
 }
 
@@ -447,12 +458,12 @@ request_tile :: proc(tile: Tile) -> bool {
 
     handle := curl.easy_init()
     url := get_tile_url(tile)
-    curl.easy_setopt(handle, curl.OPT_URL, url)
-    curl.easy_setopt(handle, curl.OPT_USERAGENT, "libcurl-agent/1.0")
-    curl.easy_setopt(handle, curl.OPT_WRITEDATA, chunk)
-    curl.easy_setopt(handle, curl.OPT_WRITEFUNCTION, _write_proc)
-    curl.easy_setopt(handle, curl.OPT_PRIVATE, chunk)
+    curl.easy_setopt(handle, .URL, url)
+    curl.easy_setopt(handle, .USERAGENT, "libcurl-agent/1.0")
+    curl.easy_setopt(handle, .WRITEDATA, chunk)
+    curl.easy_setopt(handle, .WRITEFUNCTION, _write_proc)
+    curl.easy_setopt(handle, .PRIVATE, chunk)
 
-    curl.multi_add_handle(req_state.m_handle, handle)
+    curl.multi_add_handle(m_handle, handle)
     return true
 }
