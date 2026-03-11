@@ -195,8 +195,6 @@ load_user_config :: proc() -> (config: Config) {
             config.api_keys[.Mapbox_Satelite] = key
         }
     }
-    log.info(config.api_keys)
-
     return
 }
 
@@ -374,7 +372,6 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 }
                 // This guy allocates??
                 img := rl.LoadImageFromMemory(ft, raw_data(chunk.data), i32(len(chunk.data)))
-                delete(chunk.data)
 
                 // we also need to make sure that the tile's style is the same as what we are using
                 if item.style != req_state.tile_layer.style {
@@ -411,14 +408,17 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 
                 } else {
                     delete_key(cache, tile)
-                    // this might not be a good idea but usefull for debuging
                     log.error("Could not load tile as an image")
+                    if ODIN_DEBUG {
+                        _ = os.write_entire_file("response.dat", chunk.data[:])
+                    }
                 }
             } else {
                 log.error("Request failed", msg.data.result)
             }
 
             // cleanup
+            delete(chunk.data)
             free(chunk)
             curl.multi_remove_handle(m_handle, handle)
             curl.easy_cleanup(handle)
