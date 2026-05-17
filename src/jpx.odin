@@ -94,18 +94,13 @@ draw_track :: proc() {
         state.draw_track.points[i] = map_to_screen(state.map_screen, state.draw_track.coords[i])
     }
 
-    // set the line thickness for the track and draw the render batch
-    // we don't want this thickness for the endpoints or UI
+    for i in 1..<len(state.draw_track.points) {
+        point := state.draw_track.points[i]
+        prev := state.draw_track.points[i-1]
 
-    // NOTE: On mac and some browsers OpenGL glLineWidth is not supported for values != 1.0
-    rlgl.SetLineWidth(TRACK_LINE_THICK)
-    rl.DrawLineStrip(
-        raw_data(state.draw_track.points),
-        i32(len(state.draw_track.points)),
-        state.draw_track.color,
-    )
-    rlgl.DrawRenderBatchActive()
-    rlgl.SetLineWidth(1)
+        rl.DrawPoly(prev, 5, 0.5*TRACK_LINE_THICK, 0, state.draw_track.color)
+        rl.DrawLineEx(prev, point, TRACK_LINE_THICK, state.draw_track.color)
+    }
 
     // Draw the start and end points
     rl.DrawCircleV(state.draw_track.points[0], END_POINT_RADIUS, rl.DARKGREEN)

@@ -209,7 +209,6 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
     //---Drawing Plots---
     PLOT_LINE_THICK :: 2
     MAX_PLOT_POINTS :: 2048
-    rlgl.SetLineWidth(PLOT_LINE_THICK)
 
     has_time := track.duration != 0
     has_hr := track.avg_hr != 0
@@ -263,7 +262,7 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
         case .Distance:
             unimplemented()
         }
-        rl.DrawLineStrip(raw_data(points_buf[:count]), auto_cast count, color)
+        rl.DrawSplineLinear(raw_data(points_buf[:count]), auto_cast count, PLOT_LINE_THICK, color)
     }
 
     //---Elevation---
@@ -320,9 +319,6 @@ gui_panel_plots :: proc(panel: ^Gui_Panel, track: Gps_Track, ui_focused: ^bool) 
             draw_plot(inner_rect, points_buf[:], track, .Speed)
         }
     }
-
-    rlgl.DrawRenderBatchActive()
-    rlgl.SetLineWidth(1.0)
 
     //---Values and toggles---
     // values are rendered depending on the selected point in the track, if nothing is selected
