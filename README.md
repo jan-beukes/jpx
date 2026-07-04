@@ -53,6 +53,14 @@ You can add keys to the config file to always have access to those map styles
 Jawg=YOUR_KEY
 Mapbox=YOUR_KEY
 ```
+## Build
+odin version dev-2026-07
+```
+odin build src/main_desktop -o:speed
+```
+Use `build.sh` on posix systems.
+
+Use `build_web.sh` for web build.
 
 ## References
 https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames 
