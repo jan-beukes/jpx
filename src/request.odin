@@ -1,6 +1,10 @@
 package jpx
 
-import rl "vendor:raylib"
+import "core:fmt"
+import "core:image"
+import "core:image/png"
+import "core:image/jpeg"
+import rl "vendor:raylib/v6"
 
 MAX_ACTIVE_REQUESTS :: 32
 CACHE_LIMIT :: 512
@@ -108,6 +112,20 @@ get_tile_layer :: proc(style: Layer_Style, api_key := cstring("")) -> Tile_Layer
         tile_size = tile_size,
         clear_color = clear_color,
     }
+}
+
+load_tile_image_from_data :: proc(data: []u8) -> (raylib_img: rl.Image, err: image.Error) {
+    // Since we use UnloadImage we need to make sure raylib/libc malloc was used to allocate
+    raylib_allocator := rl.MemAllocator()
+    img := image.load_from_bytes(data, allocator = raylib_allocator) or_return
+    raylib_img = rl.Image{
+        data = raw_data(img.pixels.buf),
+        width = i32(img.width),
+        height = i32(img.height),
+        format = img.channels == 4 ? .UNCOMPRESSED_R8G8B8A8 : .UNCOMPRESSED_R8G8B8,
+        mipmaps = 1,
+    }
+    return
 }
 
 get_tile_url :: proc(tile: Tile) -> cstring {

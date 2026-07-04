@@ -7,7 +7,7 @@ import "core:slice"
 import "core:log"
 // import "core:fmt"
 
-import rl "vendor:raylib"
+import rl "vendor:raylib/v6"
 
 MIN_ZOOM :: 2
 ZOOM_FALLBACK_LIMIT :: 8

@@ -2,6 +2,7 @@ jpx
 jpx.ini
 *.gpx
 .cache
+*.dat
 
 web_build
 release

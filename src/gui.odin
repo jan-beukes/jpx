@@ -5,8 +5,8 @@ import "core:math"
 import "core:math/ease"
 import "core:time"
 import "core:time/datetime"
-import rl "vendor:raylib"
-import "vendor:raylib/rlgl"
+import rl "vendor:raylib/v6"
+import "vendor:raylib/v6/rlgl"
 
 BORDER_THICK :: 1.2
 PANEL_BORDER_THICK :: 3.0

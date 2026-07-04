@@ -29,23 +29,21 @@ export EMSDK_QUIET=1
 # The emcc call will be fed the actual raylib library file. That stuff will end
 # up in env.o
 #
-(set -x
-    odin build src/main_web -target:js_wasm32 -build-mode:obj -define:RAYLIB_WASM_LIB=env.o -out:$OUT_DIR/jpx.wasm.o -debug)
+(set -x; odin build src/main_web -out:"$OUT_DIR/jpx.wasm.obj" -target:js_wasm32 -build-mode:obj -define:RAYLIB_WASM_LIB=env.o -debug)
 
 ODIN_PATH=$(odin root)
 
 cp $ODIN_PATH/core/sys/wasm/js/odin.js $OUT_DIR
 cp src/main_web/jpx.js $OUT_DIR
 
-files="$OUT_DIR/jpx.wasm.o ${ODIN_PATH}/vendor/raylib/wasm/libraylib.a"
+files="$OUT_DIR/jpx.wasm.obj ${ODIN_PATH}/vendor/raylib/v6/wasm/libraylib.web.a"
 
 flags="-sUSE_GLFW=3 -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sASSERTIONS -sALLOW_MEMORY_GROWTH --shell-file src/main_web/index_template.html"
 
 # For debugging: Add `-g` to `emcc`
-(set -x;
-    emcc -o $OUT_DIR/index.html $files $flags)
+(set -x; emcc -o $OUT_DIR/index.html $files $flags)
 
-rm $OUT_DIR/jpx.wasm.o
+rm $OUT_DIR/jpx.wasm.obj
 
 echo "Web build created in '${OUT_DIR}'"
 

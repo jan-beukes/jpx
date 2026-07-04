@@ -8,7 +8,7 @@ import "core:log"
 import "core:time/datetime"
 import "core:sys/wasm/js"
 import "core:strings"
-import rl "vendor:raylib"
+import rl "vendor:raylib/v6"
 
 @(private="file") platform_context: runtime.Context
 @(private="file") tile_cache: ^Tile_Cache
@@ -81,8 +81,9 @@ fetch_callback :: proc "c" (data: rawptr, len: i32, tile_x, tile_y, tile_z: i32)
         ft = ".jpg"
     }
 
-    img := rl.LoadImageFromMemory(ft, data, len)
-    if img.data != nil {
+    data_slice := ([^]u8)(data)[:len]
+    img, err := load_tile_image_from_data(data_slice)
+    if err == nil {
         texture := rl.LoadTextureFromImage(img)
         rl.SetTextureFilter(texture, .BILINEAR)
         rl.SetTextureWrap(texture, .MIRROR_REPEAT) // Mirrored wrap fixes bilinear filter sampling on edges

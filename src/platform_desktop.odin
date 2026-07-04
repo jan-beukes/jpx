@@ -19,7 +19,7 @@ import "core:time/datetime"
 import "core:time/timezone"
 
 import "vendor:curl"
-import rl "vendor:raylib"
+import rl "vendor:raylib/v6"
 import tinyfd "tinyfiledialogs"
 
 CACHE_DIR :: ".cache"
@@ -268,10 +268,9 @@ io_thread_proc :: proc() {
         save, save_ok = queue.pop_front_safe(&thread_ctx.save_queue)
         sync.mutex_unlock(&thread_ctx.mutex)
 
-        // Idk why I am using raylib fs functions
+        // TODO: Maybe switch to odin filesystem and image functions
         if read_ok {
-            ft: cstring =
-                read.style == .Mapbox_Outdoors || read.style == .Mapbox_Satelite ? ".jpg" : ".png"
+            ft: cstring = ".png"
             file := get_tile_file(read.tile, read.style_name, ft)
             img := rl.LoadImage(file)
             if img.data != nil {
@@ -284,8 +283,7 @@ io_thread_proc :: proc() {
             }
         }
         if save_ok {
-            ft: cstring =
-                save.style == .Mapbox_Outdoors || save.style == .Mapbox_Satelite ? ".jpg" : ".png"
+            ft: cstring = ".png"
             file := get_tile_file(save.tile, save.style_name, ft)
             dirpath := rl.GetDirectoryPath(file)
             if !rl.DirectoryExists(dirpath) {
@@ -370,13 +368,15 @@ poll_requests :: proc(cache: ^Tile_Cache) {
                 if item.style == .Mapbox_Satelite || item.style == .Mapbox_Outdoors {
                     ft = ".jpg"
                 }
+
                 // This guy allocates??
-                img := rl.LoadImageFromMemory(ft, raw_data(chunk.data), i32(len(chunk.data)))
+                img, err := load_tile_image_from_data(chunk.data[:])
 
                 // we also need to make sure that the tile's style is the same as what we are using
                 if item.style != req_state.tile_layer.style {
                     delete_key(cache, tile)
-                } else if img.data != nil {
+                    rl.UnloadImage(img)
+                } else if err == nil {
                     texture := rl.LoadTextureFromImage(img)
                     rl.SetTextureFilter(texture, .BILINEAR)
                     rl.SetTextureWrap(texture, .MIRROR_REPEAT) // Mirrored wrap fixes bilinear filter sampling on edges
@@ -408,7 +408,7 @@ poll_requests :: proc(cache: ^Tile_Cache) {
 
                 } else {
                     delete_key(cache, tile)
-                    log.error("Could not load tile as an image")
+                    log.error("Could not load tile as an image:", err)
                     if ODIN_DEBUG {
                         _ = os.write_entire_file("response.dat", chunk.data[:])
                     }

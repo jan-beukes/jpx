@@ -6,8 +6,8 @@ import "core:math"
 import "core:math/linalg"
 import "core:strings"
 
-import rl "vendor:raylib"
-import rlgl "vendor:raylib/rlgl"
+import rl "vendor:raylib/v6"
+import rlgl "vendor:raylib/v6/rlgl"
 
 WINDOW_WIDTH :: 1280
 WINDOW_HEIGHT :: 720
