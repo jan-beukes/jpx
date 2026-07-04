@@ -1,7 +1,7 @@
 <!-- LOGO -->
 <h1>
 <p align="center">
-  <img src="res/icon@2x.png" alt="Logo" width="256">
+  <img src="res/icon@2x.png" alt="Logo" width="128">
   <br>Jpx
 </h1>
   <p align="center">
