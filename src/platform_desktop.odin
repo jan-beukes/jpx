@@ -19,7 +19,7 @@ import "core:time/datetime"
 import "core:time/timezone"
 
 import "vendor:curl"
-import rl "vendor:raylib/v6"
+import rl "vendor:raylib"
 import tinyfd "tinyfiledialogs"
 
 CACHE_DIR :: ".cache"

@@ -59,7 +59,7 @@ if $release; then
 
     git add .
     git commit -m "Changes based on $LAST_COMMIT"
-    git push --set-upstream origin main
+    git push --force origin main
 
     echo -e "\033[32mWeb build pushed!\033[m"
 fi

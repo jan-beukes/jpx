@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:image"
 import "core:image/png"
 import "core:image/jpeg"
-import rl "vendor:raylib/v6"
+import rl "vendor:raylib"
 
 MAX_ACTIVE_REQUESTS :: 32
 CACHE_LIMIT :: 512

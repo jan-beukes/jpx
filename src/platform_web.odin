@@ -8,7 +8,7 @@ import "core:log"
 import "core:time/datetime"
 import "core:sys/wasm/js"
 import "core:strings"
-import rl "vendor:raylib/v6"
+import rl "vendor:raylib"
 
 @(private="file") platform_context: runtime.Context
 @(private="file") tile_cache: ^Tile_Cache
