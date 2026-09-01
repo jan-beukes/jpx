@@ -516,7 +516,6 @@ update :: proc() {
     }
 
     handle_ui()
-    rl.DrawFPS(20, 20)
 
     rl.EndDrawing()
 }

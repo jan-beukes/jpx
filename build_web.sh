@@ -36,7 +36,7 @@ ODIN_PATH=$(odin root)
 cp $ODIN_PATH/core/sys/wasm/js/odin.js $OUT_DIR
 cp src/main_web/jpx.js $OUT_DIR
 
-files="$OUT_DIR/jpx.wasm.obj ${ODIN_PATH}/vendor/raylib/v6/wasm/libraylib.web.a"
+files="$OUT_DIR/jpx.wasm.obj ${ODIN_PATH}/vendor/raylib/wasm/libraylib.web.a"
 
 flags="-sUSE_GLFW=3 -sWASM_BIGINT -sWARN_ON_UNDEFINED_SYMBOLS=0 -sASSERTIONS -sALLOW_MEMORY_GROWTH --shell-file src/main_web/index_template.html"
 
