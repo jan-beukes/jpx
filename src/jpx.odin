@@ -79,6 +79,7 @@ Draw_Track :: struct {
 state: State
 
 draw_track :: proc() {
+    window_width, window_height := f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())
 
     // if zoom changed mercator coords need to be scaled
     if state.draw_track.zoom != state.map_screen.zoom {
@@ -94,11 +95,15 @@ draw_track :: proc() {
         state.draw_track.points[i] = map_to_screen(state.map_screen, state.draw_track.coords[i])
     }
 
-    for i in 1..<len(state.draw_track.points) {
+    t := 1.0 - f64(state.map_screen.zoom) / f64(req_state.tile_layer.max_zoom)
+    step := int(math.lerp(1.0, 400.0, t*t*t))
+    for i := step; i < len(state.draw_track.points); i += step {
         point := state.draw_track.points[i]
-        prev := state.draw_track.points[i-1]
-
-        rl.DrawPoly(prev, 5, 0.5*TRACK_LINE_THICK, 0, state.draw_track.color)
+        prev := state.draw_track.points[i-step]
+        // skip when both points are off screen
+        point_off := point.x < 0 || point.x > window_width || point.y < 0 || point.y > window_height
+        prev_off := prev.x < 0 || prev.x > window_width || prev.y < 0 || prev.y > window_height
+        if (point_off && prev_off) do continue
         rl.DrawLineEx(prev, point, TRACK_LINE_THICK, state.draw_track.color)
     }
 
@@ -511,6 +516,7 @@ update :: proc() {
     }
 
     handle_ui()
+    rl.DrawFPS(20, 20)
 
     rl.EndDrawing()
 }
@@ -540,7 +546,7 @@ init :: proc() {
 
     // Raylib setup
     rl.SetTraceLogLevel(.NONE)
-    rl.SetConfigFlags({.WINDOW_RESIZABLE, .MSAA_4X_HINT})
+    rl.SetConfigFlags({.WINDOW_RESIZABLE})
     rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "jpx")
     rl.SetWindowMonitor(0)
     rl.SetWindowMinSize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
